@@ -3,6 +3,9 @@
 NETBOX_URL="${NETBOX_URL:-http://localhost:8000}"
 NETBOX_API_TOKEN="${NETBOX_API_TOKEN:-}"
 
+DRY_RUN="${DRY_RUN:-}"
+CONFIRM="${CONFIRM:-1}"
+
 declare -A NETBOX_API_ENDPOINTS=(
   [clusters]="virtualization/clusters/"
   [devices]="dcim/devices/"
@@ -46,8 +49,77 @@ echo_debug() {
   echo -e "\e[1m\e[35mDBG\e[0m $*" >&2
 }
 
+echo_dryrun() {
+  echo -e "\e[1m\e[35mDRY\e[0m $*" >&2
+}
+
+echo_confirm() {
+  if [[ -n "$NO_CONFIRM" ]]
+  then
+    return 0
+  fi
+
+  local msg_pre=$'\e[31mASK\e[0m'
+  local msg="${1:-"Continue?"}"
+  local yn
+  read -r -n1 -p "${msg_pre} ${msg} [y/N] " yn
+  [[ "$yn" =~ ^[yY] ]]
+  local rc="$?"
+  echo # append a NL
+  return "$rc"
+}
+
 arr_to_json() {
   printf '%s\n' "$@" | jq -Rn '[inputs]'
+}
+
+# shellcheck disable=SC2120
+colorizecolumns() {
+  if [[ -n "$NO_COLOR" ]]
+  then
+    cat "$@"
+    return "$?"
+  fi
+
+  awk '
+    BEGIN {
+      # Define colors
+      colors[0] = "\033[36m" # cyan
+      colors[1] = "\033[32m" # green
+      colors[2] = "\033[35m" # magenta
+      colors[3] = "\033[37m" # white
+      colors[4] = "\033[33m" # yellow
+      colors[5] = "\033[34m" # blue
+      colors[6] = "\033[38m" # gray
+      colors[7] = "\033[31m" # red
+      reset = "\033[0m"
+    }
+
+    {
+      field_count = 0
+
+      # Process the line character by character
+      for (i = 1; i <= length($0); i++) {
+        # Current char
+        char = substr($0, i, 1)
+
+        if (char ~ /[\t]/) {
+          # If the character is a tab, just print it
+          printf "%s", char
+        } else {
+          # Apply color to printable characters
+          color = colors[field_count % length(colors)]
+          printf "%s%s%s", color, char, reset
+          # Move to the next field after a tab
+          if (substr($0, i + 1, 1) ~ /[\t]/) {
+            field_count++
+          }
+        }
+      }
+
+      # Append trailing NL
+      printf "\n"
+    }' "$@"
 }
 
 urlencode() {
@@ -77,12 +149,29 @@ netbox_curl_raw() {
     url="${NETBOX_URL}/api/${endpoint}"
   fi
 
-  curl -fsSL \
-    -H "Authorization: Token $NETBOX_API_TOKEN" \
-    -H "Accept: application/json; indent=2" \
-    -H "Content-Type: application/json" \
-    "$@" \
+  local args=(
+    -fsSL
+    -H "Authorization: Token $NETBOX_API_TOKEN"
+    -H "Accept: application/json; indent=2"
+    -H "Content-Type: application/json"
+    "$@"
     "$url"
+  )
+
+  if grep -qE "(DELETE|PATCH|POST|PUT)" <<< "$*"
+  then
+    if [[ -n "$DRY_RUN" ]]
+    then
+      echo_dryrun "curl ${args[*]@Q}"
+      return 0
+    elif [[ -n "$CONFIRM" ]]
+    then
+      echo_info "curl ${args[*]@Q}"
+      echo_confirm "Execute the command?" || return 1
+    fi
+  fi
+
+  curl "${args[@]}"
 }
 
 netbox_graphql() {
@@ -224,7 +313,7 @@ netbox_list() {
       IFS="=" read -r filter_key filter_val <<< "$filter"
       filter_val_enc=$(urlencode "$filter_val")
 
-      echo_debug "Filtering by: $filter_key=$filter_val_enc"
+      echo_debug "GET $endpoint - filter: $filter_key=$filter_val_enc"
 
       [[ -z "$first" ]] && sep="&"
       endpoint+="${sep}${filter_key}=${filter_val_enc}"
@@ -233,6 +322,19 @@ netbox_list() {
   fi
 
   netbox_curl "$endpoint"
+}
+
+check_filters() {
+  local filter
+  for filter in "$@"
+  do
+    if [[ ! "$filter" == *=* ]]
+    then
+      return 1
+    fi
+  done
+
+  return 0
 }
 
 netbox_assign_devices_to_cluster() {
@@ -246,9 +348,19 @@ netbox_assign_devices_to_cluster() {
     cluster_id="$cluster"
   fi
 
-  # NOTE is assumed that device IDs are provided as [int]
+  local device_filters=("$@")
+  if [[ "${#device_filters[@]}" -eq 0 ]] || \
+     ! check_filters "${device_filters[@]}"
+  then
+    echo_error "Invalid device filters provided: ${device_filters[*]}"
+    return 1
+  fi
+
   local device_ids
-  device_ids="$(arr_to_json "$@")"
+  device_ids=$(netbox_list_devices "${device_filters[@]}" | jq -er '[.[].id]')
+
+  # NOTE below assumes that device IDs are provided as [int]
+  # device_ids="$(arr_to_json "$@")"
 
   local data
   data=$(jq -nc \
@@ -256,6 +368,17 @@ netbox_assign_devices_to_cluster() {
     --argjson device_ids "$device_ids" '
     [$device_ids[] | {id: (. | tonumber), cluster: ($cluster_id | tonumber)}]
   ')
+
+  local length
+  length=$(jq -er 'length' <<< "$data")
+
+  if [[ "$length" -eq 0 ]]
+  then
+    echo_error "No matching device found for filters: ${device_filters[*]}"
+    return 1
+  fi
+
+  echo_info "Assigning $length devices to cluster $cluster (id: $cluster_id)"
 
   netbox_curl_raw "${NETBOX_API_ENDPOINTS[devices]}" \
     -X PATCH \
@@ -284,16 +407,32 @@ main() {
   while [[ -n "$*" ]]
   do
     case "$1" in
-      -D|--debug)
-        DEBUG=1
-        shift
-        ;;
       help|h|-h|--help)
         usage
         exit 0
         ;;
+      -D|--debug)
+        DEBUG=1
+        shift
+        ;;
+      -k|--dry-run|--dryrun)
+        DRY_RUN=1
+        shift
+        ;;
+      --confirm)
+        CONFIRM=1
+        shift
+        ;;
+      --no-confirm|--noconfirm|-y)
+        NO_CONFIRM=1
+        shift
+        ;;
       -a|--api-token)
         NETBOX_API_TOKEN="$2"
+        shift 2
+        ;;
+      -u|--url)
+        NETBOX_URL="$2"
         shift 2
         ;;
       *)
