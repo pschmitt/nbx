@@ -4,12 +4,12 @@ NETBOX_URL="${NETBOX_URL:-http://localhost:8000}"
 NETBOX_API_TOKEN="${NETBOX_API_TOKEN:-}"
 
 declare -A NETBOX_API_ENDPOINTS=(
-  [clusters]="virtualization/clusters"
-  [devices]="dcim/devices"
-  [locations]="dcim/locations"
-  [racks]="dcim/racks"
-  [sites]="dcim/sites"
-  [tenants]="tenancy/tenants"
+  [clusters]="virtualization/clusters/"
+  [devices]="dcim/devices/"
+  [locations]="dcim/locations/"
+  [racks]="dcim/racks/"
+  [sites]="dcim/sites/"
+  [tenants]="tenancy/tenants/"
 )
 
 usage() {
@@ -20,6 +20,7 @@ usage() {
   echo "  devices  [FILTERS]     List devices"
   echo "  graphql  QUERY FIELDS  GraphQL query"
   echo "  raw      ENDPOINT      Fetch raw data from an endpoint"
+  echo "  racks    [FILTERS]     List racks"
   echo "  sites    [FILTERS]     List sites"
 }
 
@@ -256,7 +257,7 @@ netbox_assign_devices_to_cluster() {
     [$device_ids[] | {id: (. | tonumber), cluster: ($cluster_id | tonumber)}]
   ')
 
-  netbox_curl_raw "${NETBOX_API_ENDPOINTS[devices]}/" \
+  netbox_curl_raw "${NETBOX_API_ENDPOINTS[devices]}" \
     -X PATCH \
     --data "$data"
 }
