@@ -79,15 +79,21 @@ netbox_graphql() {
   # NETBOX_URL/api to the endpoint URL
   local endpoint="${NETBOX_URL}/graphql/"
 
-  if [[ "${#@}" -lt 2 ]]
+  if [[ "${#@}" -lt 1 ]]
   then
-    echo_error "Missing query and/or fields data for GraphQL query"
+    echo_error "Missing GraphQL query"
     return 2
   fi
 
   local query="${1//"/\\"}"
   shift
+
   local fields=("$@")
+  if [[ "${#fields[@]}" -lt 1 ]]
+  then
+    # Default to output id and name fields
+    fields=(id name)
+  fi
 
   local fields_json
   fields_json=$(arr_to_json "${fields[@]}")
