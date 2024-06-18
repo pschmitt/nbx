@@ -7,6 +7,7 @@ COMPACT="${COMPACT:-}"
 CONFIRM="${CONFIRM:-1}"
 DRY_RUN="${DRY_RUN:-}"
 DEBUG="${DEBUG:-}"
+GRAPHQL="${GRAPHQL:-}"
 NO_COLOR="${NO_COLOR:-}"
 NO_HEADER="${NO_HEADER:-}"
 NO_WARNINGS="${NO_WARNINGS:-}"
@@ -179,10 +180,34 @@ netbox_curl_raw() {
     fi
   fi
 
+  if [[ -n "$DEBUG" ]]
+  then
+    echo_debug "curl ${args[*]@Q}"
+  fi
+
   curl "${args[@]}"
 }
 
 netbox_graphql() {
+  local jq_filter=".data"
+
+  while [[ "${#@}" -gt 0 ]]
+  do
+    case "$1" in
+      --jq*)
+        jq_filter="$2"
+        shift 2
+        ;;
+      --)
+        shift
+        break
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
+
   # NOTE We need to set the full URL here to prevent curl_raw to prepend
   # NETBOX_URL/api to the endpoint URL
   local endpoint="${NETBOX_URL}/graphql/"
@@ -203,23 +228,103 @@ netbox_graphql() {
     fields=(id name)
   fi
 
-  local fields_json
-  fields_json=$(arr_to_json "${fields[@]}")
+  # Transform nested fields to GraphQL format
+  local fields_ql
+  fields_ql=$(to_graphql "${fields[@]}")
+
+  echo_debug "GraphQL fields: $fields_ql"
 
   local data
   data=$(jq -nc \
     --arg query "$query" \
-    --argjson fields "$fields_json" '
+    --arg fields "$fields_ql" '
       {
-        query: "query {\($query) {\($fields | join(","))}}"
+        query: "query {\($query) {\($fields)}}"
       }
     ')
 
-  echo_debug "GraphQL query data: $data"
+  echo_debug "GraphQL query: $data"
 
-  netbox_curl_raw "$endpoint" \
-    --data "$data" | \
-      jq -e '.data'
+  local res_raw
+  res_raw=$(netbox_curl_raw "$endpoint" --data "$data")
+
+  if [[ -n "$DEBUG" ]]
+  then
+    echo_debug "GraphQL response (RAW): $res_raw"
+  fi
+
+  local error
+  error=$(jq -er '.errors' <<< "$res_raw")
+
+  if [[ -n "$error" && "$error" != "null" ]]
+  then
+    echo_error "$(jq -r '.[].message' <<< "$error")"
+    return 1
+  fi
+
+  local res
+  res=$(jq -e "$jq_filter" <<< "$res_raw")
+
+  if [[ -n "$DEBUG" ]]
+  then
+    echo_debug "GraphQL response: $res"
+  fi
+
+  printf '%s\n' "$res"
+}
+
+to_graphql() {
+  local fields=("$@")
+  local output=""
+  local -A nested_map
+  local field
+  local parts
+
+  # Process each field
+  for field in "${fields[@]}"; do
+    if [[ $field == *.* ]]; then
+      # Split nested fields by '.'
+      IFS='.' read -r -a parts <<< "$field"
+      if [ ${#parts[@]} -eq 2 ]; then
+        # Append to nested_map under the parent key
+        nested_map[${parts[0]}]+="${parts[1]} "
+      fi
+    else
+      # Direct fields
+      output+="$field, "
+    fi
+  done
+
+  # Construct nested GraphQL part
+  for key in "${!nested_map[@]}"; do
+    local nested_fields="${nested_map[$key]}"
+    # Remove trailing space and format
+    nested_fields="${nested_fields// /, }"
+    nested_fields="${nested_fields%, }" # Remove trailing comma from nested fields
+    output+="$key { $nested_fields }, "
+  done
+
+  # Remove trailing comma and space from the final output
+  output="${output%, }"
+
+  # Print the final result
+  echo "$output"
+}
+
+netbox_graphql_objects() {
+  local object_type="${1%%s}"
+  shift
+
+  local fields=("$@")
+  # Default fields
+  if [[ "${#fields[@]}" -lt 1 ]]
+  then
+    fields=(id name)
+  fi
+
+  local key="${object_type}_list"
+  netbox_graphql --jq ".data[\"${key}\"]" \
+    "$key" "${fields[@]}"
 }
 
 netbox_curl_paginate() {
@@ -544,6 +649,10 @@ main() {
         NETBOX_URL="$2"
         shift 2
         ;;
+      -g|--graphql)
+        GRAPHQL=1
+        shift
+        ;;
       -D|--debug)
         DEBUG=1
         shift
@@ -646,10 +755,12 @@ main() {
     COLUMN_NAMES=(ID "${COLUMN_NAMES[@]}")
   fi
 
+  local command=()
+
   case "$ACTION" in
     # Shorthands
     c|cl|cluster*)
-      command=netbox_list_clusters
+      command=(netbox_list_clusters)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
         JSON_COLUMNS+=(group.name)
@@ -657,16 +768,27 @@ main() {
       fi
       ;;
     d|dev*)
-      command=netbox_list_devices
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(rack.name)
+        COLUMN_NAMES+=(Rack)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(netbox_graphql_objects device "${JSON_COLUMNS[@]}")
+      else
+        command=(netbox_list_devices)
+      fi
       ;;
     l|loc*)
-      command=netbox_list_locations
+      command=(netbox_list_locations)
       ;;
     s|site*)
-      command=netbox_list_sites
+      command=(netbox_list_sites)
       ;;
     r|rack*)
-      command=netbox_list_racks
+      command=(netbox_list_racks)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
         JSON_COLUMNS+=(site.name location.name)
@@ -674,7 +796,7 @@ main() {
       fi
       ;;
     t|ten*)
-      command=netbox_list_tenants
+      command=(netbox_list_tenants)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
         JSON_COLUMNS+=(group.name)
@@ -684,7 +806,7 @@ main() {
 
     # RAW
     graph*)
-      command=netbox_graphql
+      command=(netbox_graphql)
       if [[ "$OUTPUT" != "json" ]]
       then
         echo_warning "Output format forced to 'json' for GraphQL queries"
@@ -692,7 +814,7 @@ main() {
       fi
       ;;
     raw)
-      command=netbox_curl
+      command=(netbox_curl)
       if [[ "$OUTPUT" != "json" ]]
       then
         echo_warning "Output format forced to 'json' for raw curl requests"
@@ -702,7 +824,7 @@ main() {
 
     # Workflows
     assign-to-cluster)
-      command=netbox_assign_devices_to_cluster
+      command=(netbox_assign_devices_to_cluster)
       if [[ "$OUTPUT" != "json" ]]
       then
         echo_warning "Output format forced to 'json' for assign-to-cluster action"
@@ -717,7 +839,7 @@ main() {
       ;;
   esac
 
-  JSON_DATA="$("$command" "$@")"
+  JSON_DATA="$("${command[@]}" "$@")"
 
   case "$OUTPUT" in
     json)
