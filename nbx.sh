@@ -261,20 +261,20 @@ netbox_assign_devices_to_cluster() {
 }
 
 # Generate functions for each endpoint
-for endpoint in "${!NETBOX_API_ENDPOINTS[@]}"
+for API_ENDPOINT in "${!NETBOX_API_ENDPOINTS[@]}"
 do
   eval "$(cat <<EOF
-netbox_list_${endpoint}() {
-  netbox_list "\${NETBOX_API_ENDPOINTS[${endpoint}]}" "\$@"
+netbox_list_${API_ENDPOINT}() {
+  netbox_list "\${NETBOX_API_API_ENDPOINTS[${endpoint}]}" "\$@"
 }
 
-netbox_${endpoint%%s}_id() {
-  netbox_id "$endpoint" "\$@"
+netbox_${API_ENDPOINT%%s}_id() {
+  netbox_id "$API_ENDPOINT" "\$@"
 }
 EOF
 )"
 done
-
+unset API_ENDPOINT
 
 main() {
   local args=()
