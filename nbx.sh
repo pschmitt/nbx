@@ -670,6 +670,7 @@ main() {
     # Workflows
     assign-to-cluster)
       command=netbox_assign_devices_to_cluster
+      OUTPUT=json
       ;;
 
     *)
