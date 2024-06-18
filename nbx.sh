@@ -3,6 +3,14 @@
 NETBOX_URL="${NETBOX_URL:-http://localhost:8000}"
 NETBOX_API_TOKEN="${NETBOX_API_TOKEN:-}"
 
+declare -A NETBOX_API_ENDPOINTS=(
+  [clusters]="virtualization/clusters"
+  [devices]="dcim/devices"
+  [locations]="dcim/locations"
+  [sites]="dcim/sites"
+  [tenants]="tenancy/tenants"
+)
+
 usage() {
   echo "Usage: $(basename "$0") [options] ACTION [ARGS]" >&2
   echo
@@ -170,7 +178,7 @@ netbox_curl() {
   netbox_curl_paginate "$@" | jq -es 'add'
 }
 
-netbox_resolve_id() {
+netbox_id() {
   local object_type="$1"
   local name="$2"
 
@@ -187,7 +195,7 @@ netbox_resolve_id() {
 
   case "$length" in
     0)
-      echo_error "No item named '$name' found"
+      echo_error "No ${object_type%%s} named '$name' found"
       return 1
       ;;
     1)
@@ -198,26 +206,6 @@ netbox_resolve_id() {
       return 1
       ;;
   esac
-}
-
-netbox_cluster_id() {
-  netbox_resolve_id cluster "$1"
-}
-
-netbox_device_id() {
-  netbox_resolve_id device "$1"
-}
-
-netbox_location_id() {
-  netbox_resolve_id location "$1"
-}
-
-netbox_site_id() {
-  netbox_resolve_id site "$1"
-}
-
-netbox_tenant_id() {
-  netbox_resolve_id tenant "$1"
 }
 
 netbox_list() {
@@ -243,26 +231,6 @@ netbox_list() {
   fi
 
   netbox_curl "$endpoint"
-}
-
-netbox_list_clusters() {
-  netbox_list virtualization/clusters "$@"
-}
-
-netbox_list_devices() {
-  netbox_list dcim/devices "$@"
-}
-
-netbox_list_locations() {
-  netbox_list dcim/locations "$@"
-}
-
-netbox_list_sites() {
-  netbox_list dcim/sites "$@"
-}
-
-netbox_list_tenants() {
-  netbox_list tenancy/tenants "$@"
 }
 
 netbox_assign_devices_to_cluster() {
@@ -291,6 +259,22 @@ netbox_assign_devices_to_cluster() {
     -X PATCH \
     --data "$data"
 }
+
+# Generate functions for each endpoint
+for endpoint in "${!NETBOX_API_ENDPOINTS[@]}"
+do
+  eval "$(cat <<EOF
+netbox_list_${endpoint}() {
+  netbox_list "\${NETBOX_API_ENDPOINTS[${endpoint}]}" "\$@"
+}
+
+netbox_${endpoint%%s}_id() {
+  netbox_id "$endpoint" "\$@"
+}
+EOF
+)"
+done
+
 
 main() {
   local args=()
