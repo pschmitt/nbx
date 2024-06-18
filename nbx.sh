@@ -170,6 +170,56 @@ netbox_curl() {
   netbox_curl_paginate "$@" | jq -es 'add'
 }
 
+netbox_resolve_id() {
+  local object_type="$1"
+  local name="$2"
+
+  if [[ ! "$object_type" == *s ]]
+  then
+    object_type+="s"
+  fi
+
+  local res
+  res=$("netbox_list_${object_type}" name="$name")
+
+  local length
+  length=$(jq -er 'length' <<< "$res")
+
+  case "$length" in
+    0)
+      echo_error "No item named '$name' found"
+      return 1
+      ;;
+    1)
+      jq -er '.[0].id' <<< "$res"
+      ;;
+    *)
+      echo_warning "Ambiguous name '$name': $length results found"
+      return 1
+      ;;
+  esac
+}
+
+netbox_cluster_id() {
+  netbox_resolve_id cluster "$1"
+}
+
+netbox_device_id() {
+  netbox_resolve_id device "$1"
+}
+
+netbox_location_id() {
+  netbox_resolve_id location "$1"
+}
+
+netbox_site_id() {
+  netbox_resolve_id site "$1"
+}
+
+netbox_tenant_id() {
+  netbox_resolve_id tenant "$1"
+}
+
 netbox_list() {
   local endpoint="$1"
   shift
@@ -213,29 +263,6 @@ netbox_list_sites() {
 
 netbox_list_tenants() {
   netbox_list tenancy/tenants "$@"
-}
-
-netbox_cluster_id() {
-  local name="$1"
-  local res
-  res=$(netbox_list_clusters name="$name")
-
-  local length
-  length=$(jq -er 'length' <<< "$res")
-
-  case "$length" in
-    0)
-      echo_error "No cluster named '$name' found"
-      return 1
-      ;;
-    1)
-      jq -er '.[0].id' <<< "$res"
-      ;;
-    *)
-      echo_warning "Ambiguous cluster name '$name': $length results found"
-      return 1
-      ;;
-  esac
 }
 
 netbox_assign_devices_to_cluster() {
