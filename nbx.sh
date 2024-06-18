@@ -7,6 +7,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [clusters]="virtualization/clusters"
   [devices]="dcim/devices"
   [locations]="dcim/locations"
+  [racks]="dcim/racks"
   [sites]="dcim/sites"
   [tenants]="tenancy/tenants"
 )
@@ -265,7 +266,7 @@ for API_ENDPOINT in "${!NETBOX_API_ENDPOINTS[@]}"
 do
   eval "$(cat <<EOF
 netbox_list_${API_ENDPOINT}() {
-  netbox_list "\${NETBOX_API_API_ENDPOINTS[${endpoint}]}" "\$@"
+  netbox_list "${NETBOX_API_ENDPOINTS[${API_ENDPOINT}]}" "\$@"
 }
 
 netbox_${API_ENDPOINT%%s}_id() {
@@ -326,6 +327,9 @@ main() {
       ;;
     s|site*)
       netbox_list_sites "$@"
+      ;;
+    r|rack*)
+      netbox_list_racks "$@"
       ;;
     t|ten*)
       netbox_list_tenants "$@"
