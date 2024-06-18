@@ -29,6 +29,18 @@ echo_debug() {
   echo -e "\e[1m\e[35mDBG\e[0m $*" >&2
 }
 
+urlencode() {
+  local LANG=C i c e=''
+  for ((i=0; i<${#1}; i++))
+  do
+    c=${1:$i:1}
+    [[ "$c" =~ [a-zA-Z0-9\.\~\_\-] ]] || printf -v c '%%%02X' "'$c"
+    e+="$c"
+  done
+  echo "$e"
+}
+
+
 netbox_curl_raw() {
   local endpoint="$1"
   shift
@@ -51,7 +63,7 @@ netbox_curl_raw() {
 }
 
 netbox_curl_paginate() {
-  local index=0
+  local index=1
   local count=0
 
   while [[ -n "$*" ]]
@@ -105,26 +117,32 @@ netbox_curl() {
   netbox_curl_paginate "$@" | jq -es 'add'
 }
 
-netbox_list_sites() {
-  local filter="$1"
-  local endpoint="dcim/sites"
+netbox_list() {
+  local endpoint="$1"
+  local filter="$2"
   if [[ -n "$filter" ]]
   then
-    endpoint="dcim/sites/?$filter"
+    local filter_key filter_val
+    IFS="=" read -r filter_key filter_val <<< "$filter"
+    local filter_val_enc
+    filter_val_enc=$(urlencode "$filter_val")
+    echo_debug "Filtering by: $filter_key=$filter_val_enc"
+    endpoint+="/?${filter_key}=${filter_val_enc}"
   fi
 
   netbox_curl "$endpoint"
 }
 
-netbox_list_devices() {
-  local filter="$1"
-  local endpoint="dcim/devices"
-  if [[ -n "$filter" ]]
-  then
-    endpoint="dcim/devices/?$filter"
-  fi
+netbox_list_sites() {
+  netbox_list dcim/sites "$@"
+}
 
-  netbox_curl dcim/devices
+netbox_list_devices() {
+  netbox_list dcim/devices "$@"
+}
+
+netbox_list_clusters() {
+  netbox_list virtualization/clusters "$@"
 }
 
 main() {
@@ -167,6 +185,9 @@ main() {
   case "$ACTION" in
     s|site*)
       netbox_list_sites "$@"
+      ;;
+    c|cl|cluster*)
+      netbox_list_clusters "$@"
       ;;
     d|dev*)
       netbox_list_devices "$@"
