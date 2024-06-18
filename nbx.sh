@@ -119,15 +119,24 @@ netbox_curl() {
 
 netbox_list() {
   local endpoint="$1"
-  local filter="$2"
-  if [[ -n "$filter" ]]
+  shift
+
+  local filters=("$@")
+  if [[ "${#filters[@]}" -gt 0 ]]
   then
-    local filter_key filter_val
-    IFS="=" read -r filter_key filter_val <<< "$filter"
-    local filter_val_enc
-    filter_val_enc=$(urlencode "$filter_val")
-    echo_debug "Filtering by: $filter_key=$filter_val_enc"
-    endpoint+="/?${filter_key}=${filter_val_enc}"
+    local filter filter_key filter_val filter_val_enc
+    local first=1 sep="?"
+    for filter in "${filters[@]}"
+    do
+      IFS="=" read -r filter_key filter_val <<< "$filter"
+      filter_val_enc=$(urlencode "$filter_val")
+
+      echo_debug "Filtering by: $filter_key=$filter_val_enc"
+
+      [[ -z "$first" ]] && sep="&"
+      endpoint+="${sep}${filter_key}=${filter_val_enc}"
+      unset first
+    done
   fi
 
   netbox_curl "$endpoint"
