@@ -3,8 +3,10 @@
 NETBOX_URL="${NETBOX_URL:-http://localhost:8000}"
 NETBOX_API_TOKEN="${NETBOX_API_TOKEN:-}"
 
+OUTPUT="${OUTPUT:-pretty}"
 DRY_RUN="${DRY_RUN:-}"
 CONFIRM="${CONFIRM:-1}"
+NO_WARNINGS="${NO_WARNINGS:-}"
 
 declare -A NETBOX_API_ENDPOINTS=(
   [clusters]="virtualization/clusters/"
@@ -36,7 +38,7 @@ echo_success() {
 }
 
 echo_warning() {
-  [[ -n "$NO_WARNING" ]] && return 0
+  [[ -n "$NO_WARNINGS" ]] && return 0
   echo -e "\e[1m\e[33mWRN\e[0m $*" >&2
 }
 
@@ -386,20 +388,114 @@ netbox_assign_devices_to_cluster() {
 }
 
 # Generate functions for each endpoint
-for API_ENDPOINT in "${!NETBOX_API_ENDPOINTS[@]}"
+for OBJECT_TYPE in "${!NETBOX_API_ENDPOINTS[@]}"
 do
   eval "$(cat <<EOF
-netbox_list_${API_ENDPOINT}() {
-  netbox_list "${NETBOX_API_ENDPOINTS[${API_ENDPOINT}]}" "\$@"
+netbox_list_${OBJECT_TYPE}() {
+  netbox_list "${NETBOX_API_ENDPOINTS[${OBJECT_TYPE}]}" "\$@"
 }
 
-netbox_${API_ENDPOINT%%s}_id() {
-  netbox_id "$API_ENDPOINT" "\$@"
+netbox_${OBJECT_TYPE%%s}_id() {
+  netbox_id "$OBJECT_TYPE" "\$@"
 }
 EOF
 )"
 done
-unset API_ENDPOINT
+unset OBJECT_TYPE
+
+pretty_output() {
+  local columns_json_arr
+  columns_json_arr=$(arr_to_json "${JSON_COLUMNS[@]}")
+
+  {
+    if [[ -z "$NO_HEADER" ]]
+    then
+      # shellcheck disable=SC2031
+      for col in "${COLUMN_NAMES[@]}"
+      do
+        if [[ -n "$NO_COLOR" ]]
+        then
+          echo -ne "${col}\t"
+        else
+          echo -ne "\e[1m${col}\e[0m\t"
+        fi
+      done
+      echo
+    fi
+
+    local compact=false
+    [[ -n "$COMPACT" ]] && compact=true
+
+    local sort_by=${SORT_BY:-name} sort_reverse=false
+    if [[ "$sort_by" == -* ]]
+    then
+      sort_by="${sort_by:1}"
+      sort_reverse=true
+    fi
+
+    jq -er \
+      --arg sort_by "$sort_by" \
+      --argjson sort_reverse "$sort_reverse" \
+      --argjson cols_json "$columns_json_arr" \
+      --argjson compact "$compact" '
+      def extractFields:
+        . as $obj |
+        reduce $cols_json[] as $field (
+          {}; . + {
+            ($field | gsub("\\."; "_")): $obj | getpath($field / ".")
+          }
+        );
+
+      "N/A" as $NA |
+
+      . |
+      if (. | type == "array")
+      then
+        sort_by(
+          if ((.[ $sort_by ] | type) == "string")
+          then
+            (.[ $sort_by ] | ascii_downcase)
+          else
+            .[ $sort_by ]
+          end
+        ) | (if $sort_reverse then reverse else . end) | map(extractFields)[]
+      else
+        extractFields
+      end |
+      map(
+        if (
+            (. | type == "null") or
+            ((. | type == "string") and ((. | length) == 0))
+          )
+        then
+          $NA
+        elif (. | type == "array")
+        then
+          if (. | length) == 0
+          then
+            $NA
+          else
+            if all(.[]; type == "object" and has("name"))
+            then
+              40 as $maxwidth |
+              [.[].name] | sort | join(" ") as $out |
+              if ($compact and (($out | length) > $maxwidth))
+              then
+                $out[0:$maxwidth] + "…"
+              else
+                $out
+              end
+            else
+              (. | join(", "))
+            end
+          end
+        else
+          .
+        end
+      ) | @tsv
+    ' | colorizecolumns
+  } | column -t -s '	'
+}
 
 main() {
   local args=()
@@ -425,6 +521,14 @@ main() {
         ;;
       --no-confirm|--noconfirm|-y)
         NO_CONFIRM=1
+        shift
+        ;;
+      -o|--output)
+        OUTPUT="$2"
+        shift 2
+        ;;
+      -j|--json)
+        OUTPUT=json
         shift
         ;;
       -a|--api-token)
@@ -454,44 +558,58 @@ main() {
 
   shift
 
+  JSON_COLUMNS=(id name description)
+  COLUMN_NAMES=(ID Name Description)
+
   case "$ACTION" in
     # Shorthands
     c|cl|cluster*)
-      netbox_list_clusters "$@"
+      command=netbox_list_clusters
       ;;
     d|dev*)
-      netbox_list_devices "$@"
+      command=netbox_list_devices
       ;;
     l|loc*)
-      netbox_list_locations "$@"
+      command=netbox_list_locations
       ;;
     s|site*)
-      netbox_list_sites "$@"
+      command=netbox_list_sites
       ;;
     r|rack*)
-      netbox_list_racks "$@"
+      command=netbox_list_racks
       ;;
     t|ten*)
-      netbox_list_tenants "$@"
+      command=netbox_list_tenants
       ;;
 
     # RAW
     graph*)
-      netbox_graphql "$@"
+      command=netbox_graphql
       ;;
     raw)
-      netbox_curl "$@"
+      command=netbox_curl
       ;;
 
     # Workflows
     assign-to-cluster)
-      netbox_assign_devices_to_cluster "$@"
+      command=netbox_assign_devices_to_cluster
       ;;
 
     *)
       echo_error "Unknown action: $ACTION"
       usage
       exit 1
+      ;;
+  esac
+
+  JSON_DATA="$("$command" "$@")"
+
+  case "$OUTPUT" in
+    json)
+      jq -er '.' <<< "$JSON_DATA"
+      ;;
+    pretty)
+      pretty_output <<< "$JSON_DATA"
       ;;
   esac
 }
