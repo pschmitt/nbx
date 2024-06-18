@@ -766,6 +766,13 @@ main() {
         JSON_COLUMNS+=(group.name)
         COLUMN_NAMES+=(Group)
       fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(netbox_graphql_objects cluster "${JSON_COLUMNS[@]}")
+      else
+        command=(netbox_list_clusters)
+      fi
       ;;
     d|dev*)
       if [[ -z "$CUSTOM_COLUMNS" ]]
@@ -782,25 +789,47 @@ main() {
       fi
       ;;
     l|loc*)
-      command=(netbox_list_locations)
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(netbox_graphql_objects location "${JSON_COLUMNS[@]}")
+      else
+        command=(netbox_list_locations)
+      fi
       ;;
     s|site*)
-      command=(netbox_list_sites)
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(netbox_graphql_objects site "${JSON_COLUMNS[@]}")
+      else
+        command=(netbox_list_sites)
+      fi
       ;;
     r|rack*)
-      command=(netbox_list_racks)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
         JSON_COLUMNS+=(site.name location.name)
         COLUMN_NAMES+=(Site Location)
       fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(netbox_graphql_objects rack "${JSON_COLUMNS[@]}")
+      else
+        command=(netbox_list_racks)
+      fi
       ;;
     t|ten*)
-      command=(netbox_list_tenants)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
         JSON_COLUMNS+=(group.name)
         COLUMN_NAMES+=(Group)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(netbox_graphql_objects tenant "${JSON_COLUMNS[@]}")
+      else
+        command=(netbox_list_tenants)
       fi
       ;;
 
