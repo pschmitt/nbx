@@ -345,6 +345,29 @@ check_filters() {
   return 0
 }
 
+resolve_filters() {
+  local filter
+  local key val obj
+  for filter in "$@"
+  do
+    IFS="=" read -r key val <<< "$filter"
+    case "$key" in
+      *_id)
+        if [[ ! "$val" =~ ^[0-9]+$ ]]
+        then
+          obj=${key%_id}
+          val=$(netbox_id "$obj" "$val")
+        fi
+
+        echo "$key=$val"
+        ;;
+      *)
+        echo "$filter"
+        ;;
+    esac
+  done
+}
+
 netbox_assign_devices_to_cluster() {
   local cluster="$1"
   shift
