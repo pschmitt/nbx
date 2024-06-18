@@ -51,6 +51,28 @@ netbox_curl_raw() {
 }
 
 netbox_curl_paginate() {
+  local index=0
+  local count=0
+
+  while [[ -n "$*" ]]
+  do
+    case "$1" in
+      -i|--index)
+        index="$2"
+        shift 2
+        ;;
+      -c|--count)
+        count="$2"
+        shift 2
+        ;;
+      *)
+        break
+        ;;
+    esac
+  done
+
+  echo_debug "Fetching page $index"
+
   local res
   if ! res=$(netbox_curl_raw "$@")
   then
@@ -61,14 +83,20 @@ netbox_curl_paginate() {
   local results
   results=$(jq -er '.results' <<< "$res")
 
+  printf '%s\n' "$results"
+
+  local count total
+  count=$(jq -er --argjson count "$count" '$count + (.results | length)' <<< "$res")
+  total=$(jq -er '.count' <<< "$res")
+  echo_debug "Fetched ${count}/${total} items"
+
   local next
   next=$(jq -er '.next' <<< "$res")
 
-  printf '%s\n' "$results"
-
   if [[ "$next" != "null" ]]
   then
-    netbox_curl_paginate "$next"
+    index=$((index + 1))
+    netbox_curl_paginate --index "$index" --count "$count" "$next"
   fi
 }
 
@@ -89,6 +117,13 @@ netbox_list_sites() {
 }
 
 netbox_list_devices() {
+  local filter="$1"
+  local endpoint="dcim/devices"
+  if [[ -n "$filter" ]]
+  then
+    endpoint="dcim/devices/?$filter"
+  fi
+
   netbox_curl dcim/devices
 }
 
@@ -119,7 +154,32 @@ main() {
 
   set -- "${args[@]}"
 
-  netbox_curl "$@"
+  ACTION="$1"
+  if [[ -z "$ACTION" ]]
+  then
+    echo_error "No action specified"
+    usage
+    exit 1
+  fi
+
+  shift
+
+  case "$ACTION" in
+    s|site*)
+      netbox_list_sites "$@"
+      ;;
+    d|dev*)
+      netbox_list_devices "$@"
+      ;;
+    raw)
+      netbox_curl "$@"
+      ;;
+    *)
+      echo_error "Unknown action: $ACTION"
+      usage
+      exit 1
+      ;;
+  esac
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]
