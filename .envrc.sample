@@ -1,0 +1,2 @@
+export NETBOX_URL="http://localhost:8080"
+export NETBOX_API_TOKEN="xxx"
