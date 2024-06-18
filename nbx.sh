@@ -70,6 +70,7 @@ netbox_curl_raw() {
   curl -fsSL \
     -H "Authorization: Token $NETBOX_API_TOKEN" \
     -H "Accept: application/json; indent=2" \
+    -H "Content-Type: application/json" \
     "$@" \
     "$url"
 }
@@ -110,7 +111,6 @@ netbox_graphql() {
   echo_debug "GraphQL query data: $data"
 
   netbox_curl_raw "$endpoint" \
-    --header "Content-Type: application/json" \
     --data "$data" | \
       jq -e '.data'
 }
@@ -215,6 +215,56 @@ netbox_list_tenants() {
   netbox_list tenancy/tenants "$@"
 }
 
+netbox_cluster_id() {
+  local name="$1"
+  local res
+  res=$(netbox_list_clusters name="$name")
+
+  local length
+  length=$(jq -er 'length' <<< "$res")
+
+  case "$length" in
+    0)
+      echo_error "No cluster named '$name' found"
+      return 1
+      ;;
+    1)
+      jq -er '.[0].id' <<< "$res"
+      ;;
+    *)
+      echo_warning "Ambiguous cluster name '$name': $length results found"
+      return 1
+      ;;
+  esac
+}
+
+netbox_assign_devices_to_cluster() {
+  local cluster="$1"
+  shift
+
+  if [[ ! "$cluster" =~ ^[0-9]+$ ]]
+  then
+    cluster_id=$(netbox_cluster_id "$cluster")
+  else
+    cluster_id="$cluster"
+  fi
+
+  # NOTE is assumed that device IDs are provided as [int]
+  local device_ids
+  device_ids="$(arr_to_json "$@")"
+
+  local data
+  data=$(jq -nc \
+    --argjson cluster_id "$cluster_id" \
+    --argjson device_ids "$device_ids" '
+    [$device_ids[] | {id: (. | tonumber), cluster: ($cluster_id | tonumber)}]
+  ')
+
+  netbox_curl_raw "dcim/devices/" \
+    -X PATCH \
+    --data "$data"
+}
+
 main() {
   local args=()
 
@@ -253,6 +303,7 @@ main() {
   shift
 
   case "$ACTION" in
+    # Shorthands
     c|cl|cluster*)
       netbox_list_clusters "$@"
       ;;
@@ -268,12 +319,20 @@ main() {
     t|ten*)
       netbox_list_tenants "$@"
       ;;
-    raw)
-      netbox_curl "$@"
-      ;;
+
+    # RAW
     graph*)
       netbox_graphql "$@"
       ;;
+    raw)
+      netbox_curl "$@"
+      ;;
+
+    # Workflows
+    assign-to-cluster)
+      netbox_assign_devices_to_cluster "$@"
+      ;;
+
     *)
       echo_error "Unknown action: $ACTION"
       usage
