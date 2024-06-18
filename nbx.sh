@@ -150,16 +150,24 @@ netbox_list() {
   netbox_curl "$endpoint"
 }
 
-netbox_list_sites() {
-  netbox_list dcim/sites "$@"
+netbox_list_clusters() {
+  netbox_list virtualization/clusters "$@"
 }
 
 netbox_list_devices() {
   netbox_list dcim/devices "$@"
 }
 
-netbox_list_clusters() {
-  netbox_list virtualization/clusters "$@"
+netbox_list_locations() {
+  netbox_list dcim/locations "$@"
+}
+
+netbox_list_sites() {
+  netbox_list dcim/sites "$@"
+}
+
+netbox_list_tenants() {
+  netbox_list tenancy/tenants "$@"
 }
 
 main() {
@@ -200,14 +208,20 @@ main() {
   shift
 
   case "$ACTION" in
-    s|site*)
-      netbox_list_sites "$@"
-      ;;
     c|cl|cluster*)
       netbox_list_clusters "$@"
       ;;
     d|dev*)
       netbox_list_devices "$@"
+      ;;
+    l|loc*)
+      netbox_list_locations "$@"
+      ;;
+    s|site*)
+      netbox_list_sites "$@"
+      ;;
+    t|ten*)
+      netbox_list_tenants "$@"
       ;;
     raw)
       netbox_curl "$@"
