@@ -662,15 +662,29 @@ main() {
     # RAW
     graph*)
       command=netbox_graphql
+      if [[ "$OUTPUT" != "json" ]]
+      then
+        echo_warning "Output format forced to 'json' for GraphQL queries"
+        OUTPUT=json
+      fi
       ;;
     raw)
       command=netbox_curl
+      if [[ "$OUTPUT" != "json" ]]
+      then
+        echo_warning "Output format forced to 'json' for raw curl requests"
+        OUTPUT=json
+      fi
       ;;
 
     # Workflows
     assign-to-cluster)
       command=netbox_assign_devices_to_cluster
-      OUTPUT=json
+      if [[ "$OUTPUT" != "json" ]]
+      then
+        echo_warning "Output format forced to 'json' for assign-to-cluster action"
+        OUTPUT=json
+      fi
       ;;
 
     *)
