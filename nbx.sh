@@ -36,14 +36,16 @@ echo_debug() {
 }
 
 urlencode() {
-  local LANG=C i c e=''
+  local LANG=C i char enc=''
+
   for ((i=0; i<${#1}; i++))
   do
-    c=${1:$i:1}
-    [[ "$c" =~ [a-zA-Z0-9\.\~\_\-] ]] || printf -v c '%%%02X' "'$c"
-    e+="$c"
+    char=${1:$i:1}
+    [[ "$char" =~ [a-zA-Z0-9\.\~\_\-] ]] || printf -v char '%%%02X' "'${char}"
+    enc+="$char"
   done
-  echo "$e"
+
+  echo "$enc"
 }
 
 
