@@ -7,10 +7,11 @@ usage() {
   echo "Usage: $(basename "$0") [options] ACTION [ARGS]" >&2
   echo
   echo "Actions:"
-  echo "  clusters [FILTERS]    List clusters"
-  echo "  devices  [FILTERS]    List devices"
-  echo "  raw      ENDPOINT     Fetch raw data from an endpoint"
-  echo "  sites    [FILTERS]    List sites"
+  echo "  clusters [FILTERS]     List clusters"
+  echo "  devices  [FILTERS]     List devices"
+  echo "  graphql  QUERY FIELDS  GraphQL query"
+  echo "  raw      ENDPOINT      Fetch raw data from an endpoint"
+  echo "  sites    [FILTERS]     List sites"
 }
 
 echo_info() {
@@ -35,6 +36,10 @@ echo_debug() {
   echo -e "\e[1m\e[35mDBG\e[0m $*" >&2
 }
 
+arr_to_json() {
+  printf '%s\n' "$@" | jq -Rn '[inputs]'
+}
+
 urlencode() {
   local LANG=C i char enc=''
 
@@ -47,7 +52,6 @@ urlencode() {
 
   echo "$enc"
 }
-
 
 netbox_curl_raw() {
   local endpoint="$1"
@@ -68,6 +72,41 @@ netbox_curl_raw() {
     -H "Accept: application/json; indent=2" \
     "$@" \
     "$url"
+}
+
+netbox_graphql() {
+  # NOTE We need to set the full URL here to prevent curl_raw to prepend
+  # NETBOX_URL/api to the endpoint URL
+  local endpoint="${NETBOX_URL}/graphql/"
+
+  if [[ "${#@}" -lt 2 ]]
+  then
+    echo_error "Missing query and/or fields data for GraphQL query"
+    return 2
+  fi
+
+  local query="${1//"/\\"}"
+  shift
+  local fields=("$@")
+
+  local fields_json
+  fields_json=$(arr_to_json "${fields[@]}")
+
+  local data
+  data=$(jq -nc \
+    --arg query "$query" \
+    --argjson fields "$fields_json" '
+      {
+        query: "query {\($query) {\($fields | join(","))}}"
+      }
+    ')
+
+  echo_debug "GraphQL query data: $data"
+
+  netbox_curl_raw "$endpoint" \
+    --header "Content-Type: application/json" \
+    --data "$data" | \
+      jq -e '.data'
 }
 
 netbox_curl_paginate() {
@@ -225,6 +264,9 @@ main() {
       ;;
     raw)
       netbox_curl "$@"
+      ;;
+    graph*)
+      netbox_graphql "$@"
       ;;
     *)
       echo_error "Unknown action: $ACTION"
