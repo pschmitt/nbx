@@ -256,7 +256,7 @@ netbox_assign_devices_to_cluster() {
     [$device_ids[] | {id: (. | tonumber), cluster: ($cluster_id | tonumber)}]
   ')
 
-  netbox_curl_raw "dcim/devices/" \
+  netbox_curl_raw "${NETBOX_API_ENDPOINTS[devices]}/" \
     -X PATCH \
     --data "$data"
 }
