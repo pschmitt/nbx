@@ -4,7 +4,13 @@ NETBOX_URL="${NETBOX_URL:-http://localhost:8000}"
 NETBOX_API_TOKEN="${NETBOX_API_TOKEN:-}"
 
 usage() {
-  echo "Usage: $(basename "$0") [options] ITEM [ACTION]" >&2
+  echo "Usage: $(basename "$0") [options] ACTION [ARGS]" >&2
+  echo
+  echo "Actions:"
+  echo "  site[s]    [FILTERS]  List sites"
+  echo "  cluster[s] [FILTERS]  List clusters"
+  echo "  device[s]  [FILTERS]  List devices"
+  echo "  raw        ENDPOINT   Fetch raw data from an endpoint"
 }
 
 echo_info() {
