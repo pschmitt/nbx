@@ -7,10 +7,10 @@ usage() {
   echo "Usage: $(basename "$0") [options] ACTION [ARGS]" >&2
   echo
   echo "Actions:"
-  echo "  site[s]    [FILTERS]  List sites"
-  echo "  cluster[s] [FILTERS]  List clusters"
-  echo "  device[s]  [FILTERS]  List devices"
-  echo "  raw        ENDPOINT   Fetch raw data from an endpoint"
+  echo "  clusters [FILTERS]    List clusters"
+  echo "  devices  [FILTERS]    List devices"
+  echo "  raw      ENDPOINT     Fetch raw data from an endpoint"
+  echo "  sites    [FILTERS]    List sites"
 }
 
 echo_info() {
