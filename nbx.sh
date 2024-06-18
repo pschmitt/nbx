@@ -451,8 +451,9 @@ check_filters() {
 }
 
 resolve_filters() {
-  local filter
-  local key val obj
+  local filter key val obj
+  local -A data
+
   for filter in "$@"
   do
     IFS="=" read -r key val <<< "$filter"
@@ -461,7 +462,15 @@ resolve_filters() {
         if [[ ! "$val" =~ ^[0-9]+$ ]]
         then
           obj=${key%_id}
-          val=$(netbox_id "$obj" "$val")
+
+          if [[ -z "${data[$obj]}" ]]
+          then
+            data[$obj]="$(netbox_graphql_objects "$obj" id name)"
+          fi
+
+          val=$(jq -er --arg val "$val" '
+              .[] | select(.name == $val) | .id
+            ' <<< "${data[$obj]}")
         fi
 
         echo "$key=$val"
