@@ -3,10 +3,16 @@
 NETBOX_URL="${NETBOX_URL:-http://localhost:8000}"
 NETBOX_API_TOKEN="${NETBOX_API_TOKEN:-}"
 
-OUTPUT="${OUTPUT:-pretty}"
-DRY_RUN="${DRY_RUN:-}"
+COMPACT="${COMPACT:-}"
 CONFIRM="${CONFIRM:-1}"
+DRY_RUN="${DRY_RUN:-}"
+DEBUG="${DEBUG:-}"
+NO_COLOR="${NO_COLOR:-}"
+NO_HEADER="${NO_HEADER:-}"
 NO_WARNINGS="${NO_WARNINGS:-}"
+OUTPUT="${OUTPUT:-pretty}"
+SORT_BY="${SORT_BY:-name}"
+WITH_ID_COL="${WITH_ID_COL:-}"
 
 declare -A NETBOX_API_ENDPOINTS=(
   [clusters]="virtualization/clusters/"
@@ -507,6 +513,14 @@ main() {
         usage
         exit 0
         ;;
+      -a|--api-token)
+        NETBOX_API_TOKEN="$2"
+        shift 2
+        ;;
+      -u|--url)
+        NETBOX_URL="$2"
+        shift 2
+        ;;
       -D|--debug)
         DEBUG=1
         shift
@@ -531,13 +545,44 @@ main() {
         OUTPUT=json
         shift
         ;;
-      -a|--api-token)
-        NETBOX_API_TOKEN="$2"
+      -N|-no-header)
+        NO_HEADER=1
+        shift
+        ;;
+      -c|--no-color)
+        NO_COLOR=1
+        shift
+        ;;
+      --compact|--truncate)
+        COMPACT=1
+        shift 1
+        ;;
+      -I|--id*|--with-id)
+        WITH_ID_COL=1
+        shift
+        ;;
+      --columns)
+        local CUSTOM_COLUMNS=1
+        mapfile -t JSON_COLUMNS < <(tr ',' '\n' <<< "$2")
+
+        COLUMN_NAMES=() # Reset
+        local col col_capitalized
+        for col in "${JSON_COLUMNS[@]}"
+        do
+          col_capitalized="$(tr '[:lower:]' '[:upper:]' <<< "${col:0:1}")${col:1}"
+          COLUMN_NAMES+=("$col_capitalized")
+        done
         shift 2
         ;;
-      -u|--url)
-        NETBOX_URL="$2"
+      -s|--sort*)
+        SORT_BY="$2"
+        # CUSTOM_SORT=1
         shift 2
+        ;;
+      --)
+        shift
+        args+=("$@")
+        break
         ;;
       *)
         args+=("$1")
@@ -558,13 +603,35 @@ main() {
 
   shift
 
-  JSON_COLUMNS=(id name description)
-  COLUMN_NAMES=(ID Name Description)
+  JSON_COLUMNS=(name description)
+  COLUMN_NAMES=(Name Description)
+
+  case "$OUTPUT" in
+    pretty)
+      # Skip header and color if output is not a terminal
+      if [[ ! -t 1 ]]
+      then
+        NO_HEADER=1
+        NO_COLOR=1
+      fi
+      ;;
+  esac
+
+  if [[ -n "$WITH_ID_COL" ]]
+  then
+    JSON_COLUMNS=(id "${JSON_COLUMNS[@]}")
+    COLUMN_NAMES=(ID "${COLUMN_NAMES[@]}")
+  fi
 
   case "$ACTION" in
     # Shorthands
     c|cl|cluster*)
       command=netbox_list_clusters
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(group.name)
+        COLUMN_NAMES+=(Group)
+      fi
       ;;
     d|dev*)
       command=netbox_list_devices
@@ -577,9 +644,19 @@ main() {
       ;;
     r|rack*)
       command=netbox_list_racks
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(site.name location.name)
+        COLUMN_NAMES+=(Site Location)
+      fi
       ;;
     t|ten*)
       command=netbox_list_tenants
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(group.name)
+        COLUMN_NAMES+=(Group)
+      fi
       ;;
 
     # RAW
