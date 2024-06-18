@@ -119,7 +119,7 @@ main() {
 
   set -- "${args[@]}"
 
-  netbox_list_sites "$@"
+  netbox_curl "$@"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]
