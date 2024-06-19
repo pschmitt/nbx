@@ -82,6 +82,12 @@ arr_to_json() {
   printf '%s\n' "$@" | jq -Rn '[inputs]'
 }
 
+arr_join() {
+  local IFS="$1"
+  shift
+  echo "$*"
+}
+
 # shellcheck disable=SC2120
 colorizecolumns() {
   if [[ -n "$NO_COLOR" ]]
@@ -315,16 +321,59 @@ netbox_graphql_objects() {
   local object_type="${1%%s}"
   shift
 
+  local -a args filters
+  local key val
+
+  # shellcheck disable=SC2046
+  set -- $(resolve_filters "$@")
+
+  while [[ -n $* ]]
+  do
+    case "$1" in
+      *=*)
+        # convert filters like rack_id=691 to GraphQL format (rack_id: "691")
+        IFS="=" read -r key val <<< "$1"
+        filters+=("${key}:\"${val}\"")
+        shift
+        ;;
+      --)
+        shift
+        break
+        ;;
+      *)
+        args+=("$1")
+        shift
+        ;;
+    esac
+  done
+
+  # Resolve filters
+  local f
+  for f in "${filters[@]}"
+  do
+    IFS=":" read -r key val <<< "$f"
+
+  done
+
+  set -- "${args[@]}"
+
   local fields=("$@")
   # Default fields
-  if [[ "${#fields[@]}" -lt 1 ]]
+  if [[ "${#fields[@]}" -eq 0 ]]
   then
     fields=(id name)
   fi
 
   local key="${object_type}_list"
+  local q="${key}"
+
+  if [[ "${#filters[@]}" -gt 0 ]]
+  then
+    q+="($(arr_join ', ' "${filters[@]}"))"
+  fi
+
   netbox_graphql --jq ".data[\"${key}\"]" \
-    "$key" "${fields[@]}"
+    "$q" "${fields[@]}"
 }
 
 netbox_curl_paginate() {
@@ -457,6 +506,7 @@ resolve_filters() {
   for filter in "$@"
   do
     IFS="=" read -r key val <<< "$filter"
+
     case "$key" in
       *_id)
         if [[ ! "$val" =~ ^[0-9]+$ ]]
