@@ -20,6 +20,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [devices]="dcim/devices/"
   [device-roles]="dcim/device-roles/"
   [locations]="dcim/locations/"
+  [manufacturers]="dcim/manufacturers/"
   [racks]="dcim/racks/"
   [sites]="dcim/sites/"
   [tenants]="tenancy/tenants/"
@@ -955,6 +956,14 @@ main() {
         command=(netbox_graphql_objects location "${JSON_COLUMNS[@]}")
       else
         command=(netbox_list_locations)
+      fi
+      ;;
+    m|manufacturer*)
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(netbox_graphql_objects manufacturer "${JSON_COLUMNS[@]}")
+      else
+        command=(netbox_list_manufacturers)
       fi
       ;;
     s|site*)
