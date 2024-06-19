@@ -766,7 +766,7 @@ main() {
         WITH_ID_COL=1
         shift
         ;;
-      --columns)
+      --columns|--cols)
         local CUSTOM_COLUMNS=1
         mapfile -t JSON_COLUMNS < <(tr ',' '\n' <<< "$2")
 
@@ -774,7 +774,17 @@ main() {
         local col col_capitalized
         for col in "${JSON_COLUMNS[@]}"
         do
-          col_capitalized="$(awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) tolower(substr($i,2))}1' <<< "${col//./ }")"
+          # Uppercase all if col name is 1 or 2 chars only
+          if [[ ${#col} -lt 3 ]]
+          then
+            col_capitalized=${col^^}
+          else
+            col_capitalized="$(awk '
+              {
+                for(i=1;i<=NF;i++)
+                  $i=toupper(substr($i,1,1)) tolower(substr($i,2))
+              }1' <<< "${col//./ }")"
+          fi
           COLUMN_NAMES+=("$col_capitalized")
         done
         shift 2
