@@ -550,8 +550,6 @@ resolve_filters() {
           search_prop="name" # look for matches on name by default
           obj=${key%_id}
 
-          echo_debug "target_obj=$target_obj obj=$obj key=$key val=$val"
-
           # some objects don't have a name field
           case "$obj" in
             device_type)
@@ -561,6 +559,7 @@ resolve_filters() {
               # If we target devices, the "role" refers to a device_role
               case "$target_obj" in
                 device|devices)
+                  echo_debug "Rewrote filter 'role' to 'device_role'"
                   obj="device_role"
                   ;;
               esac
@@ -595,7 +594,6 @@ resolve_filters() {
         fi
 
         echo "$key=$val"
-        echo "$key=$val" >&2
         ;;
       *)
         echo "$filter"
