@@ -907,7 +907,7 @@ main() {
         command=(netbox_list_clusters)
       fi
       ;;
-    d|dev*)
+    d|dev|devices)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
         JSON_COLUMNS+=(role.name rack.name)
