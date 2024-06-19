@@ -356,7 +356,7 @@ netbox_graphql_objects() {
   local key val
 
   # shellcheck disable=SC2046
-  set -- $(resolve_filters "$@")
+  set -- $(TARGET_OBJECT="$object_type" resolve_filters "$@")
 
   while [[ -n $* ]]
   do
@@ -497,7 +497,7 @@ netbox_list() {
   shift
 
   # shellcheck disable=SC2046
-  set -- $(resolve_filters "$@")
+  set -- $(TARGET_OBJECT="$TARGET_OBJECT" resolve_filters "$@")
 
   local filters=("$@")
   if [[ "${#filters[@]}" -gt 0 ]]
@@ -534,6 +534,8 @@ check_filters() {
 }
 
 resolve_filters() {
+  local target_obj="${TARGET_OBJECT}"
+
   local filter key val obj matches search_prop
   local -A data
 
@@ -548,12 +550,23 @@ resolve_filters() {
           search_prop="name" # look for matches on name by default
           obj=${key%_id}
 
+          echo_debug "target_obj=$target_obj obj=$obj key=$key val=$val"
+
           # some objects don't have a name field
           case "$obj" in
             device_type)
               search_prop="slug"
               ;;
+            role)
+              # If we target devices, the "role" refers to a device_role
+              case "$target_obj" in
+                device|devices)
+                  obj="device_role"
+                  ;;
+              esac
+              ;;
           esac
+
 
           if [[ -z "${data[$obj]}" ]]
           then
@@ -582,6 +595,7 @@ resolve_filters() {
         fi
 
         echo "$key=$val"
+        echo "$key=$val" >&2
         ;;
       *)
         echo "$filter"
@@ -602,7 +616,7 @@ netbox_assign_devices_to_cluster() {
   fi
 
   # shellcheck disable=SC2046
-  set -- $(resolve_filters "$@")
+  set -- $(TARGET_OBJECT=device resolve_filters "$@")
 
   local device_filters=("$@")
   if [[ "${#device_filters[@]}" -eq 0 ]] || \
@@ -646,11 +660,13 @@ for OBJECT_TYPE in "${!NETBOX_API_ENDPOINTS[@]}"
 do
   eval "$(cat <<EOF
 netbox_list_${OBJECT_TYPE//-/_}() {
-  netbox_list "${NETBOX_API_ENDPOINTS[${OBJECT_TYPE}]}" "\$@"
+  TARGET_OBJECT=${OBJECT_TYPE} \
+    netbox_list "${NETBOX_API_ENDPOINTS[${OBJECT_TYPE}]}" "\$@"
 }
 
 netbox_${OBJECT_TYPE%%s}_id() {
-  netbox_id "$OBJECT_TYPE" "\$@"
+  TARGET_OBJECT=${OBJECT_TYPE} \
+    netbox_id "$OBJECT_TYPE" "\$@"
 }
 EOF
 )"
