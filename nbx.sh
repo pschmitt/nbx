@@ -451,7 +451,7 @@ check_filters() {
 }
 
 resolve_filters() {
-  local filter key val obj
+  local filter key val obj matches
   local -A data
 
   for filter in "$@"
@@ -468,9 +468,23 @@ resolve_filters() {
             data[$obj]="$(netbox_graphql_objects "$obj" id name)"
           fi
 
-          val=$(jq -er --arg val "$val" '
-              .[] | select(.name == $val) | .id
-            ' <<< "${data[$obj]}")
+          mapfile -t matches < <(jq -er --arg val "$val" '
+            .[] | select(.name == $val) | .id
+          ' <<< "${data[$obj]}")
+
+          case "${#matches[@]}" in
+            0)
+              echo_error "No matching $obj found for '$val'"
+              return 1
+              ;;
+            1)
+              val="${matches[0]}"
+              ;;
+            *)
+              echo_error "Ambiguous $obj name '$val': ${matches[*]}"
+              return 1
+              ;;
+          esac
         fi
 
         echo "$key=$val"
