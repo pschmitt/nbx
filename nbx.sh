@@ -311,48 +311,8 @@ netbox_graphql() {
   return "$rc"
 }
 
-# to_graphql() {
-#   local fields=("$@")
-#   local output=""
-#   local -A nested_map
-#   local field
-#   local parts
-#
-#   # Process each field
-#   for field in "${fields[@]}"; do
-#     if [[ $field == *.* ]]; then
-#       # Split nested fields by '.'
-#       IFS='.' read -r -a parts <<< "$field"
-#       if [ ${#parts[@]} -eq 2 ]; then
-#         # Append to nested_map under the parent key
-#         nested_map[${parts[0]}]+="${parts[1]} "
-#       fi
-#     else
-#       # Direct fields
-#       output+="$field, "
-#     fi
-#   done
-#
-#   # Construct nested GraphQL part
-#   for key in "${!nested_map[@]}"; do
-#     local nested_fields="${nested_map[$key]}"
-#     # Remove trailing space and format
-#     nested_fields="${nested_fields// /, }"
-#     nested_fields="${nested_fields%, }" # Remove trailing comma from nested fields
-#     output+="$key { $nested_fields }, "
-#   done
-#
-#   # Remove trailing comma and space from the final output
-#   output="${output%, }"
-#
-#   # Print the final result
-#   echo "$output"
-# }
-
 to_graphql() {
   local fields=("$@")
-  local output=""
-  local field
 
   # Recursive function to process nested fields
   process_fields() {
@@ -360,39 +320,44 @@ to_graphql() {
     local -A map
     local key
     local rest
-    local output=""
+    local nested_output=""
 
+    # Split fields and map them to their parents
     for field in "${fields[@]}"
     do
       IFS='.' read -r key rest <<< "$field"
       if [[ -n "$rest" ]]
       then
-        map[$key]+="$rest "
+        map[$key]+="${rest} "
       else
-        output+="$key, "
+        nested_output+="$key, "
       fi
     done
 
-    local nested_fields nested_output
+    # Process each key in the map
+    local nested_fields
+    local sub_output
     for key in "${!map[@]}"
     do
-      nested_fields=("${map[$key]}")
-      nested_output=$(process_fields "${nested_fields[@]}")
-      output+="$key { $nested_output }, "
+      # shellcheck disable=SC2206
+      nested_fields=(${map[$key]})
+      sub_output=$(process_fields "${nested_fields[@]}")
+      nested_output+="$key { $sub_output }, "
     done
 
     # Remove trailing comma and space from the current output
-    echo "${output%, }"
+    echo "${nested_output%, }"
   }
 
-  # Start processing from the top level fields
-  output=$(process_fields "${fields[@]}")
+  # Process top-level fields
+  local top_level_output
+  top_level_output=$(process_fields "${fields[@]}")
 
   # Remove trailing comma and space from the final output
-  output="${output%, }"
+  top_level_output="${top_level_output%, }"
 
   # Print the final result
-  echo "$output"
+  echo "$top_level_output"
 }
 
 netbox_graphql_objects() {
