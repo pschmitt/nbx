@@ -18,6 +18,7 @@ WITH_ID_COL="${WITH_ID_COL:-}"
 declare -A NETBOX_API_ENDPOINTS=(
   [clusters]="virtualization/clusters/"
   [devices]="dcim/devices/"
+  [device-roles]="dcim/device-roles/"
   [locations]="dcim/locations/"
   [racks]="dcim/racks/"
   [sites]="dcim/sites/"
@@ -533,7 +534,7 @@ check_filters() {
 }
 
 resolve_filters() {
-  local filter key val obj matches
+  local filter key val obj matches search_prop
   local -A data
 
   for filter in "$@"
@@ -544,15 +545,25 @@ resolve_filters() {
       *_id)
         if [[ ! "$val" =~ ^[0-9]+$ ]]
         then
+          search_prop="name" # look for matches on name by default
           obj=${key%_id}
+
+          # some objects don't have a name field
+          case "$obj" in
+            device_type)
+              search_prop="slug"
+              ;;
+          esac
 
           if [[ -z "${data[$obj]}" ]]
           then
-            data[$obj]="$(netbox_graphql_objects "$obj" id name)"
+            data[$obj]="$(netbox_graphql_objects "$obj" id "$search_prop")"
           fi
 
-          mapfile -t matches < <(jq -er --arg val "$val" '
-            .[] | select(.name == $val) | .id
+          mapfile -t matches < <(jq -er \
+            --arg val "$val" \
+            --arg search_prop "$search_prop" '
+            .[] | select(.[$search_prop] == $val) | .id
           ' <<< "${data[$obj]}")
 
           case "${#matches[@]}" in
@@ -634,7 +645,7 @@ netbox_assign_devices_to_cluster() {
 for OBJECT_TYPE in "${!NETBOX_API_ENDPOINTS[@]}"
 do
   eval "$(cat <<EOF
-netbox_list_${OBJECT_TYPE}() {
+netbox_list_${OBJECT_TYPE//-/_}() {
   netbox_list "${NETBOX_API_ENDPOINTS[${OBJECT_TYPE}]}" "\$@"
 }
 
@@ -908,6 +919,20 @@ main() {
         command=(netbox_graphql_objects device "${JSON_COLUMNS[@]}")
       else
         command=(netbox_list_devices)
+      fi
+      ;;
+    dr|device-role*)
+      # if [[ -z "$CUSTOM_COLUMNS" ]]
+      # then
+      #   JSON_COLUMNS+=(role.name rack.name)
+      #   COLUMN_NAMES+=(Role Rack)
+      # fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(netbox_graphql_objects device_role "${JSON_COLUMNS[@]}")
+      else
+        command=(netbox_list_device_roles)
       fi
       ;;
     l|loc*)
