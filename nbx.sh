@@ -311,36 +311,82 @@ netbox_graphql() {
   return "$rc"
 }
 
+# to_graphql() {
+#   local fields=("$@")
+#   local output=""
+#   local -A nested_map
+#   local field
+#   local parts
+#
+#   # Process each field
+#   for field in "${fields[@]}"; do
+#     if [[ $field == *.* ]]; then
+#       # Split nested fields by '.'
+#       IFS='.' read -r -a parts <<< "$field"
+#       if [ ${#parts[@]} -eq 2 ]; then
+#         # Append to nested_map under the parent key
+#         nested_map[${parts[0]}]+="${parts[1]} "
+#       fi
+#     else
+#       # Direct fields
+#       output+="$field, "
+#     fi
+#   done
+#
+#   # Construct nested GraphQL part
+#   for key in "${!nested_map[@]}"; do
+#     local nested_fields="${nested_map[$key]}"
+#     # Remove trailing space and format
+#     nested_fields="${nested_fields// /, }"
+#     nested_fields="${nested_fields%, }" # Remove trailing comma from nested fields
+#     output+="$key { $nested_fields }, "
+#   done
+#
+#   # Remove trailing comma and space from the final output
+#   output="${output%, }"
+#
+#   # Print the final result
+#   echo "$output"
+# }
+
 to_graphql() {
   local fields=("$@")
   local output=""
-  local -A nested_map
   local field
-  local parts
 
-  # Process each field
-  for field in "${fields[@]}"; do
-    if [[ $field == *.* ]]; then
-      # Split nested fields by '.'
-      IFS='.' read -r -a parts <<< "$field"
-      if [ ${#parts[@]} -eq 2 ]; then
-        # Append to nested_map under the parent key
-        nested_map[${parts[0]}]+="${parts[1]} "
+  # Recursive function to process nested fields
+  process_fields() {
+    local fields=("$@")
+    local -A map
+    local key
+    local rest
+    local output=""
+
+    for field in "${fields[@]}"
+    do
+      IFS='.' read -r key rest <<< "$field"
+      if [[ -n "$rest" ]]
+      then
+        map[$key]+="$rest "
+      else
+        output+="$key, "
       fi
-    else
-      # Direct fields
-      output+="$field, "
-    fi
-  done
+    done
 
-  # Construct nested GraphQL part
-  for key in "${!nested_map[@]}"; do
-    local nested_fields="${nested_map[$key]}"
-    # Remove trailing space and format
-    nested_fields="${nested_fields// /, }"
-    nested_fields="${nested_fields%, }" # Remove trailing comma from nested fields
-    output+="$key { $nested_fields }, "
-  done
+    local nested_fields nested_output
+    for key in "${!map[@]}"
+    do
+      nested_fields=("${map[$key]}")
+      nested_output=$(process_fields "${nested_fields[@]}")
+      output+="$key { $nested_output }, "
+    done
+
+    # Remove trailing comma and space from the current output
+    echo "${output%, }"
+  }
+
+  # Start processing from the top level fields
+  output=$(process_fields "${fields[@]}")
 
   # Remove trailing comma and space from the final output
   output="${output%, }"
@@ -925,8 +971,18 @@ main() {
     d|dev|devices)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
-        JSON_COLUMNS+=(role.name rack.name)
-        COLUMN_NAMES+=(Role Rack)
+        JSON_COLUMNS+=(
+          device_type.manufacturer.name
+          device_type.model
+          role.name
+          rack.name
+        )
+        COLUMN_NAMES+=(
+          Manufacturer
+          Model
+          Role
+          Rack
+        )
       fi
 
       if [[ -n "$GRAPHQL" ]]
