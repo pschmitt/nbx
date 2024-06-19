@@ -251,8 +251,13 @@ netbox_graphql() {
 
   echo_debug "GraphQL query: $data"
 
+  local rc=0
+
   local res_raw
-  res_raw=$(netbox_curl_raw "$endpoint" --data "$data")
+  if ! res_raw=$(netbox_curl_raw "$endpoint" --data "$data")
+  then
+    rc=1
+  fi
 
   if [[ -n "$DEBUG" ]]
   then
@@ -277,6 +282,7 @@ netbox_graphql() {
   fi
 
   printf '%s\n' "$res"
+  return "$rc"
 }
 
 to_graphql() {
@@ -954,7 +960,10 @@ main() {
       ;;
   esac
 
-  JSON_DATA="$("${command[@]}" "$@")"
+  if ! JSON_DATA="$("${command[@]}" "$@")"
+  then
+    return 1
+  fi
 
   case "$OUTPUT" in
     json)
