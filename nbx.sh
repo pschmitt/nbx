@@ -28,38 +28,45 @@ usage() {
   echo "Usage: $(basename "$0") [options] ACTION [ARGS]" >&2
   echo
   echo "Actions:"
-  echo "  clusters [FILTERS]     List clusters"
-  echo "  devices  [FILTERS]     List devices"
-  echo "  graphql  QUERY FIELDS  GraphQL query"
-  echo "  raw      ENDPOINT      Fetch raw data from an endpoint"
-  echo "  racks    [FILTERS]     List racks"
-  echo "  sites    [FILTERS]     List sites"
+  echo "  assign-to-cluster CLUSTER [FILTERS]  Assign devices to a cluster"
+  echo "  clusters [FILTERS]                   List clusters"
+  echo "  devices  [FILTERS]                   List devices"
+  echo "  graphql  QUERY FIELDS                GraphQL query"
+  echo "  raw      ENDPOINT                    Fetch raw data from an endpoint"
+  echo "  racks    [FILTERS]                   List racks"
+  echo "  sites    [FILTERS]                   List sites"
 }
 
 echo_info() {
-  echo -e "\e[1m\e[34mINF\e[0m $*" >&2
+  echo -ne "\e[1m\e[34mINF\e[0m " >&2
+  echo "$*" >&2
 }
 
 echo_success() {
-  echo -e "\e[1m\e[32mOK\e[0m $*" >&2
+  echo -ne "\e[1m\e[32mOK\e[0m " >&2
+  echo "$*" >&2
 }
 
 echo_warning() {
   [[ -n "$NO_WARNINGS" ]] && return 0
-  echo -e "\e[1m\e[33mWRN\e[0m $*" >&2
+  echo -ne "\e[1m\e[33mWRN\e[0m " >&2
+  echo "$*" >&2
 }
 
 echo_error() {
-  echo -e "\e[1m\e[31mERR\e[0m $*" >&2
+  echo -ne "\e[1m\e[31mERR\e[0m " >&2
+  echo "$*" >&2
 }
 
 echo_debug() {
   [[ -z "${DEBUG}" ]] && return 0
-  echo -e "\e[1m\e[35mDBG\e[0m $*" >&2
+  echo -en "\e[1m\e[35mDBG\e[0m " >&2
+  echo "$*" >&2
 }
 
 echo_dryrun() {
-  echo -e "\e[1m\e[35mDRY\e[0m $*" >&2
+  echo -e "\e[1m\e[35mDRY\e[0m " >&2
+  echo "$*" >&2
 }
 
 echo_confirm() {
@@ -70,11 +77,13 @@ echo_confirm() {
 
   local msg_pre=$'\e[31mASK\e[0m'
   local msg="${1:-"Continue?"}"
+
   local yn
   read -r -n1 -p "${msg_pre} ${msg} [y/N] " yn
+
   [[ "$yn" =~ ^[yY] ]]
   local rc="$?"
-  echo # append a NL
+  echo | tee >(cat >&2) # DIRTYFIX Append a NL on both stdout and stderr
   return "$rc"
 }
 
@@ -165,7 +174,8 @@ netbox_curl_raw() {
   fi
 
   local args=(
-    -fsSL
+    -sSL
+    -w "\n%{http_code}\n"
     -H "Authorization: Token $NETBOX_API_TOKEN"
     -H "Accept: application/json; indent=2"
     -H "Content-Type: application/json"
@@ -191,7 +201,21 @@ netbox_curl_raw() {
     echo_debug "curl ${args[*]@Q}"
   fi
 
-  curl "${args[@]}"
+  local http_code output raw_output
+
+  raw_output="$(curl "${args[@]}")"
+  http_code="$(tail -1 <<< "$raw_output")"
+  output="$(head -n -1 <<< "$raw_output")"
+
+  printf '%s\n' "$output"
+  if [[ "$http_code" != 2* ]]
+  then
+    echo_error "HTTP code $http_code"
+    echo_error "$output"
+    return 1
+  fi
+
+  return 0
 }
 
 netbox_graphql() {
@@ -562,6 +586,9 @@ netbox_assign_devices_to_cluster() {
   else
     cluster_id="$cluster"
   fi
+
+  # shellcheck disable=SC2046
+  set -- $(resolve_filters "$@")
 
   local device_filters=("$@")
   if [[ "${#device_filters[@]}" -eq 0 ]] || \
