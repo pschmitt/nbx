@@ -495,6 +495,9 @@ netbox_list() {
   local endpoint="$1"
   shift
 
+  # shellcheck disable=SC2046
+  set -- $(resolve_filters "$@")
+
   local filters=("$@")
   if [[ "${#filters[@]}" -gt 0 ]]
   then
@@ -896,8 +899,8 @@ main() {
     d|dev*)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
-        JSON_COLUMNS+=(rack.name)
-        COLUMN_NAMES+=(Rack)
+        JSON_COLUMNS+=(role.name rack.name)
+        COLUMN_NAMES+=(Role Rack)
       fi
 
       if [[ -n "$GRAPHQL" ]]
