@@ -29,7 +29,8 @@ declare -A NETBOX_API_ENDPOINTS=(
 usage() {
   echo "Usage: $(basename "$0") [options] ACTION [ARGS]" >&2
   echo
-  echo "List actions:"
+  echo "LIST ACTIONS"
+  echo
   echo "  clusters      [FILTERS]   List clusters"
   echo "  devices       [FILTERS]   List devices"
   echo "  device-roles  [FILTERS]   List device roles"
@@ -39,10 +40,14 @@ usage() {
   echo "  sites         [FILTERS]   List sites"
   echo "  tenants       [FILTERS]   List tenants"
   echo
-  echo "Workflows commands:"
+  echo
+  echo "WORKFLOWS COMMANDS"
+  echo
   echo "  assign-to-cluster CLUSTER [FILTERS]  Assign devices to a cluster"
   echo
-  echo "raw commands:"
+  echo
+  echo "RAW COMMANDS"
+  echo
   echo "  graphql  QUERY FIELDS                GraphQL query"
   echo "  raw      ENDPOINT                    Fetch raw data from an endpoint"
 }
