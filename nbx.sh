@@ -811,6 +811,12 @@ resolve_filters() {
             device_type)
               search_prop="slug"
               ;;
+            ipaddr*|ip_addr*|ip-addr*)
+              search_prop="address"
+              ;;
+            *prefix*)
+              search_prop="prefix"
+              ;;
             role)
               # If we target devices, the "role" refers to a device_role
               case "$target_obj" in
