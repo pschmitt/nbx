@@ -199,6 +199,20 @@ arr_replace() {
   done
 }
 
+arr_replace_all() {
+  local search="$1"
+  local replacement="$2"
+  shift 2
+
+  local arr=("$@")
+
+  local i
+  for i in "${arr[@]}"
+  do
+    echo "${i//${search}/${replacement}}"
+  done
+}
+
 # shellcheck disable=SC2120
 colorizecolumns() {
   if [[ -n "$NO_COLOR" ]]
@@ -1231,12 +1245,6 @@ main() {
       fi
       ;;
     dr|device-role*)
-      # if [[ -z "$CUSTOM_COLUMNS" ]]
-      # then
-      #   JSON_COLUMNS+=(role.name rack.name)
-      #   COLUMN_NAMES+=(Role Rack)
-      # fi
-
       if [[ -n "$GRAPHQL" ]]
       then
         command=(netbox_graphql_objects device_role "${JSON_COLUMNS[@]}")
