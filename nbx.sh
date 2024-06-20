@@ -1207,7 +1207,11 @@ main() {
 
       if [[ -n "$GRAPHQL" ]]
       then
-        command=(netbox_graphql_objects cluster "${JSON_COLUMNS[@]}")
+        command=(
+          netbox_graphql_objects cluster
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
       else
         command=(netbox_list_clusters)
         # FIXME Add support for graphql
@@ -1239,7 +1243,11 @@ main() {
 
       if [[ -n "$GRAPHQL" ]]
       then
-        command=(netbox_graphql_objects device "${JSON_COLUMNS[@]}")
+        command=(
+          netbox_graphql_objects device
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
       else
         command=(netbox_list_devices)
       fi
@@ -1247,7 +1255,11 @@ main() {
     dr|device-role*)
       if [[ -n "$GRAPHQL" ]]
       then
-        command=(netbox_graphql_objects device_role "${JSON_COLUMNS[@]}")
+        command=(
+          netbox_graphql_objects device_role
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
       else
         command=(netbox_list_device_roles)
       fi
@@ -1262,7 +1274,11 @@ main() {
 
       if [[ -n "$GRAPHQL" ]]
       then
-        command=(netbox_graphql_objects ip_address "${JSON_COLUMNS[@]}")
+        command=(
+          netbox_graphql_objects ip_address
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
       else
         command=(netbox_list_ip_addresses)
       fi
@@ -1270,7 +1286,11 @@ main() {
     l|loc*)
       if [[ -n "$GRAPHQL" ]]
       then
-        command=(netbox_graphql_objects location "${JSON_COLUMNS[@]}")
+        command=(
+          netbox_graphql_objects location
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
       else
         command=(netbox_list_locations)
       fi
@@ -1278,7 +1298,11 @@ main() {
     m|manufacturer*)
       if [[ -n "$GRAPHQL" ]]
       then
-        command=(netbox_graphql_objects manufacturer "${JSON_COLUMNS[@]}")
+        command=(
+          netbox_graphql_objects manufacturer
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
       else
         command=(netbox_list_manufacturers)
       fi
@@ -1286,7 +1310,11 @@ main() {
     s|site*)
       if [[ -n "$GRAPHQL" ]]
       then
-        command=(netbox_graphql_objects site "${JSON_COLUMNS[@]}")
+        command=(
+          netbox_graphql_objects site
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
       else
         command=(netbox_list_sites)
       fi
@@ -1300,7 +1328,11 @@ main() {
 
       if [[ -n "$GRAPHQL" ]]
       then
-        command=(netbox_graphql_objects rack "${JSON_COLUMNS[@]}")
+        command=(
+          netbox_graphql_objects rack
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
       else
         command=(netbox_list_racks)
       fi
@@ -1314,7 +1346,11 @@ main() {
 
       if [[ -n "$GRAPHQL" ]]
       then
-        command=(netbox_graphql_objects region "${JSON_COLUMNS[@]}")
+        command=(
+          netbox_graphql_objects region
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
       else
         command=(netbox_list_regions)
       fi
@@ -1328,7 +1364,11 @@ main() {
 
       if [[ -n "$GRAPHQL" ]]
       then
-        command=(netbox_graphql_objects tenant "${JSON_COLUMNS[@]}")
+        command=(
+          netbox_graphql_objects tenant
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
       else
         command=(netbox_list_tenants)
       fi
@@ -1342,7 +1382,11 @@ main() {
 
       if [[ -n "$GRAPHQL" ]]
       then
-        command=(netbox_graphql_objects virtual_machine "${JSON_COLUMNS[@]}")
+        command=(
+          netbox_graphql_objects virtual_machine
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
       else
         command=(netbox_list_virtual_machines)
       fi
@@ -1356,7 +1400,11 @@ main() {
 
       if [[ -n "$GRAPHQL" ]]
       then
-        command=(netbox_graphql_objects wireless_lan "${JSON_COLUMNS[@]}")
+        command=(
+          netbox_graphql_objects wireless_lan
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
       else
         command=(netbox_list_wireless_lans)
       fi
@@ -1415,9 +1463,6 @@ main() {
       ;;
   esac
 
-  # FIXME This needs to be called BEFORE we do the graphql queries
-  # Otherwise we won't have the correct column names (user-appended
-  # cols will be missing)
   # Append custom columns to the end (if they were prefixed with '+' on the CLI)
   if [[ "${#JSON_COLUMNS_AFTER[@]}" -gt 0 ]]
   then
