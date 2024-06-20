@@ -158,6 +158,21 @@ arr_join() {
   echo "$*"
 }
 
+arr_remove() {
+  local arr=("$@")
+
+  local i
+  for i in "${arr[@]}"
+  do
+    if [[ "$i" == "$1" ]]
+    then
+      continue
+    fi
+
+    echo "$i"
+  done
+}
+
 # shellcheck disable=SC2120
 colorizecolumns() {
   if [[ -n "$NO_COLOR" ]]
@@ -908,30 +923,36 @@ pretty_output() {
       end |
       map(
         if (
-            (. | type == "null") or
-            ((. | type == "string") and ((. | length) == 0))
-          )
+          (. | type == "null") or
+          ((. | type == "string") and ((. | length) == 0))
+        )
         then
           $NA
         elif (. | type == "array")
         then
-          if (. | length) == 0
-          then
-            $NA
-          else
-            if all(.[]; type == "object" and has("name"))
+          (
+            if (. | length) == 0
             then
-              40 as $maxwidth |
-              [.[].name] | sort | join(" ") as $out |
-              if ($compact and (($out | length) > $maxwidth))
-              then
-                $out[0:$maxwidth] + "…"
-              else
-                $out
-              end
+              # empty array
+              $NA
             else
-              (. | join(", "))
+              if all(.[]; type == "string")
+              then
+                # array of strings
+                (. | join(", "))
+              elif all(.[]; type == "object" and has("name"))
+              then
+                # array with multiple objects that all have names
+                [.[].name] | sort | join(" ")
+              end
             end
+          ) as $out |
+          40 as $maxwidth |
+          if ($compact and (($out | length) > $maxwidth))
+          then
+            $out[0:$maxwidth] + "…"
+          else
+            $out
           end
         else
           .
@@ -1197,11 +1218,11 @@ main() {
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
         # ip-addresses have no name field
-        JSON_COLUMNS=("${JSON_COLUMNS[@]/name}")
-        COLUMN_NAMES=("${COLUMN_NAMES[@]/Name}")
+        mapfile -t JSON_COLUMNS < <(arr_remove name "${JSON_COLUMNS[@]}")
+        mapfile -t COLUMN_NAMES < <(arr_remove Name "${COLUMN_NAMES[@]}")
 
-        JSON_COLUMNS+=(address)
-        COLUMN_NAMES+=("Address")
+        JSON_COLUMNS=(address "${JSON_COLUMNS[@]}")
+        COLUMN_NAMES=("Address" "${COLUMN_NAMES[@]}")
       fi
 
       if [[ -n "$GRAPHQL" ]]
