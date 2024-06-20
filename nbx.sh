@@ -403,14 +403,6 @@ netbox_graphql_objects() {
     esac
   done
 
-  # Resolve filters
-  local f
-  for f in "${filters[@]}"
-  do
-    IFS=":" read -r key val <<< "$f"
-
-  done
-
   set -- "${args[@]}"
 
   local fields=("$@")
