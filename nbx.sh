@@ -24,6 +24,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [locations]="dcim/locations/"
   [manufacturers]="dcim/manufacturers/"
   [racks]="dcim/racks/"
+  [regions]="dcim/regions/"
   [sites]="dcim/sites/"
   [tenants]="tenancy/tenants/"
 )
@@ -60,6 +61,7 @@ usage() {
   echo "  locations     [FILTERS]   List locations"
   echo "  manufacturers [FILTERS]   List manufacturers"
   echo "  racks         [FILTERS]   List racks"
+  echo "  regions       [FILTERS]   List regions"
   echo "  sites         [FILTERS]   List sites"
   echo "  tenants       [FILTERS]   List tenants"
   echo
@@ -1290,6 +1292,14 @@ main() {
         command=(netbox_graphql_objects rack "${JSON_COLUMNS[@]}")
       else
         command=(netbox_list_racks)
+      fi
+      ;;
+    re|region*)
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(netbox_graphql_objects region "${JSON_COLUMNS[@]}")
+      else
+        command=(netbox_list_regions)
       fi
       ;;
     t|ten*)
