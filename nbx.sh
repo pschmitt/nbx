@@ -1341,7 +1341,18 @@ main() {
           "${JSON_COLUMNS[@]}"
           "${JSON_COLUMNS_AFTER[@]}"
         )
-        # FIXME
+        # FIXME Add support for graphql
+        # We'd need to use a query like this one:
+        # {
+        #   ip_address_list(address:"xxxxxxx") {
+        #     address
+        #     assigned_object {
+        #       __typename
+        #       ... on InterfaceType { device { name } }
+        #       ... on VMInterfaceType { virtual_machine { name } }
+        #     }
+        #   }
+        # }
         # JSON_COLUMNS+=(assigned_object.name)
         # COLUMN_NAMES+=(Device)
       else
