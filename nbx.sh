@@ -23,6 +23,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [ip-addresses]="ipam/ip-addresses/"
   [locations]="dcim/locations/"
   [manufacturers]="dcim/manufacturers/"
+  [prefixes]="ipam/prefixes/"
   [racks]="dcim/racks/"
   [regions]="dcim/regions/"
   [sites]="dcim/sites/"
@@ -1309,7 +1310,7 @@ main() {
         command=(netbox_list_device_roles)
       fi
       ;;
-    ip|ip*)
+    ip|ip-*)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
         # ip-addresses have no name field
@@ -1326,6 +1327,27 @@ main() {
         )
       else
         command=(netbox_list_ip_addresses)
+      fi
+      ;;
+    ipf|pref*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        # ip-addresses have no name field
+        mapfile -t JSON_COLUMNS < <(arr_replace name prefix "${JSON_COLUMNS[@]}")
+        mapfile -t COLUMN_NAMES < <(arr_replace Name Prefix "${COLUMN_NAMES[@]}")
+        JSON_COLUMNS+=(site.name tenant.name)
+        COLUMN_NAMES+=(Site Tenant)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects prefix
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_prefixes)
       fi
       ;;
     l|loc*)
