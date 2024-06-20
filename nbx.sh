@@ -34,6 +34,8 @@ usage() {
   echo "  clusters [FILTERS]                   List clusters"
   echo "  devices  [FILTERS]                   List devices"
   echo "  device-roles [FILTERS]               List device roles"
+  echo "  locations [FILTERS]                  List locations"
+  echo "  manufacturers [FILTERS]              List manufacturers"
   echo "  graphql  QUERY FIELDS                GraphQL query"
   echo "  raw      ENDPOINT                    Fetch raw data from an endpoint"
   echo "  racks    [FILTERS]                   List racks"
@@ -858,6 +860,7 @@ main() {
           val="${val:1}"
           after=1
         else
+          # Setting CUSTOM_COLUMNS will override the default columns
           CUSTOM_COLUMNS=1
         fi
 
