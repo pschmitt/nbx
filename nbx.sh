@@ -451,7 +451,7 @@ netbox_graphql_list_columns() {
         }
       }
     }
-  ' | jq -er '[.fields[].name]|sort[]'
+  ' | jq -er '[.fields[].name] | sort[]'
 }
 
 netbox_graphql_objects() {
