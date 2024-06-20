@@ -830,7 +830,9 @@ resolve_filters() {
           mapfile -t matches < <(jq -er \
             --arg val "$val" \
             --arg search_prop "$search_prop" '
-            .[] | select(.[$search_prop] == $val) | .id
+              .[] | select(
+                .[$search_prop] | test("^" + $val + "$"; "i")
+              ) | .id
           ' <<< "${data[$obj]}")
 
           case "${#matches[@]}" in
