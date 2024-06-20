@@ -1092,8 +1092,8 @@ main() {
     c|cl|cluster*)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
-        JSON_COLUMNS+=(group.name)
-        COLUMN_NAMES+=(Group)
+        JSON_COLUMNS+=(group.name type.name)
+        COLUMN_NAMES+=(Group Type)
       fi
 
       if [[ -n "$GRAPHQL" ]]
