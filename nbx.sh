@@ -234,6 +234,7 @@ netbox_curl_raw() {
 }
 
 netbox_graphql() {
+  local raw
   local jq_filter=".data"
 
   while [[ "${#@}" -gt 0 ]]
@@ -242,6 +243,10 @@ netbox_graphql() {
       --jq*)
         jq_filter="$2"
         shift 2
+        ;;
+      --raw)
+        raw=1
+        shift
         ;;
       --)
         shift
@@ -266,27 +271,41 @@ netbox_graphql() {
   local query="${1//"/\\"}"
   shift
 
-  local fields=("$@")
-  if [[ "${#fields[@]}" -lt 1 ]]
+  if [[ "${query:0:1}" == "{" ]]
   then
-    # Default to output id and name fields
-    fields=(id name)
+    echo_warning "Query string starts with '{', assuming it's a raw query"
+    raw=1
   fi
 
-  # Transform nested fields to GraphQL format
-  local fields_ql
-  fields_ql=$(to_graphql "${fields[@]}")
-
-  echo_debug "GraphQL fields: $fields_ql"
-
   local data
-  data=$(jq -nc \
-    --arg query "$query" \
-    --arg fields "$fields_ql" '
-      {
-        query: "query {\($query) {\($fields)}}"
-      }
-    ')
+  if [[ -n "$raw" ]]
+  then
+    data=$(jq -nc \
+      --arg query "$query" '
+        { query: ("query " + $query) }
+      ')
+  else
+    local fields=("$@")
+    if [[ "${#fields[@]}" -lt 1 ]]
+    then
+      # Default to output id and name fields
+      fields=(id name)
+    fi
+
+    # Transform nested fields to GraphQL format
+    local fields_ql
+    fields_ql=$(to_graphql "${fields[@]}")
+
+    echo_debug "GraphQL fields: $fields_ql"
+
+    data=$(jq -nc \
+      --arg query "$query" \
+      --arg fields "$fields_ql" '
+        {
+          query: "query {\($query) {\($fields)}}"
+        }
+      ')
+  fi
 
   echo_debug "GraphQL query: $data"
 
