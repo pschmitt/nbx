@@ -20,6 +20,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [clusters]="virtualization/clusters/"
   [devices]="dcim/devices/"
   [device-roles]="dcim/device-roles/"
+  [ip-addresses]="ipam/ip-addresses/"
   [locations]="dcim/locations/"
   [manufacturers]="dcim/manufacturers/"
   [racks]="dcim/racks/"
@@ -54,6 +55,7 @@ usage() {
   echo "  clusters      [FILTERS]   List clusters"
   echo "  devices       [FILTERS]   List devices"
   echo "  device-roles  [FILTERS]   List device roles"
+  echo "  ip-addresses  [FILTERS]   List IP addresses"
   echo "  locations     [FILTERS]   List locations"
   echo "  manufacturers [FILTERS]   List manufacturers"
   echo "  racks         [FILTERS]   List racks"
@@ -283,6 +285,9 @@ netbox_rest_list_columns() {
     object_type+="s"
   fi
 
+  local object_type="$1"
+  shift
+
   local endpoint="${NETBOX_API_ENDPOINTS[${object_type}]}"
   if [[ -z "$endpoint" ]]
   then
@@ -452,7 +457,17 @@ to_graphql() {
 }
 
 netbox_graphql_list_columns() {
-  local object_type="${1%%s}"
+  local object_type="$1"
+
+  case "$object_type" in
+    ip-addr*|ip_addr*|IPAddr*)
+      object_type="IPAddress"
+      ;;
+    *)
+      object_type="${1%%s}"
+      ;;
+  esac
+
 
   local supported_types
   mapfile -t supported_types < <(
@@ -494,8 +509,17 @@ netbox_graphql_list_columns() {
 }
 
 netbox_graphql_objects() {
-  local object_type="${1%%s}"
+  local object_type="$1"
   shift
+
+  case "$object_type" in
+    ip-addr*|ip_addr*)
+      object_type="ip_address"
+      ;;
+    *)
+      object_type="${1%%s}"
+      ;;
+  esac
 
   local -a args filters
   local key val
@@ -1165,6 +1189,24 @@ main() {
         command=(netbox_graphql_objects device_role "${JSON_COLUMNS[@]}")
       else
         command=(netbox_list_device_roles)
+      fi
+      ;;
+    ip|ip*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        # ip-addresses have no name field
+        JSON_COLUMNS=("${JSON_COLUMNS[@]/name}")
+        COLUMN_NAMES=("${COLUMN_NAMES[@]/Name}")
+
+        JSON_COLUMNS+=(address)
+        COLUMN_NAMES+=("Address")
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(netbox_graphql_objects ip_address "${JSON_COLUMNS[@]}")
+      else
+        command=(netbox_list_ip_addresses)
       fi
       ;;
     l|loc*)
