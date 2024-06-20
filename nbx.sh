@@ -415,9 +415,34 @@ to_graphql() {
 netbox_graphql_list_columns() {
   local object_type="${1%%s}"
 
+  local supported_types
+  mapfile -t supported_types < <(
+    netbox_graphql --raw '
+      {
+      __schema {
+        types {
+          name
+        }
+      }
+      }
+    ' | jq -er '[
+      .types[] |
+      select((.name | test("Type$")) and (.name | test("^__") | not)) |
+      .name
+      ] | sort[]'
+  )
+
+  local graphql_type="${object_type^}Type"
+  if ! grep -w "${graphql_type}" <<< "${supported_types[*]}"
+  then
+    echo_error "Unknown object type: $object_type"
+    echo_info "Supported types: ${supported_types[*]//Type/}"
+    return 2
+  fi
+
   netbox_graphql --raw '
     {
-      __type(name: "'"${object_type^}Type"'") {
+      __type(name: "'"${graphql_type}"'") {
         fields {
           name
           type {
