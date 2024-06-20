@@ -67,6 +67,7 @@ usage() {
   echo "  sites         [FILTERS]   List sites"
   echo "  tenants       [FILTERS]   List tenants"
   echo "  vm            [FILTERS]   List virtual machines"
+  echo "  wifi          [FILTERS]   List wireless LANs"
   echo
   echo
   echo "META ACTIONS"
