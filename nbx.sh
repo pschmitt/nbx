@@ -33,6 +33,7 @@ usage() {
   echo "  assign-to-cluster CLUSTER [FILTERS]  Assign devices to a cluster"
   echo "  clusters [FILTERS]                   List clusters"
   echo "  devices  [FILTERS]                   List devices"
+  echo "  device-roles [FILTERS]               List device roles"
   echo "  graphql  QUERY FIELDS                GraphQL query"
   echo "  raw      ENDPOINT                    Fetch raw data from an endpoint"
   echo "  racks    [FILTERS]                   List racks"
@@ -780,6 +781,11 @@ pretty_output() {
 main() {
   local args=()
 
+  JSON_COLUMNS=()
+  JSON_COLUMNS_AFTER=()
+  COLUMN_NAMES=()
+  COLUMN_NAMES_AFTER=()
+
   while [[ -n "$*" ]]
   do
     case "$1" in
@@ -840,12 +846,26 @@ main() {
         shift
         ;;
       --columns|--cols)
-        local CUSTOM_COLUMNS=1
-        mapfile -t JSON_COLUMNS < <(tr ',' '\n' <<< "$2")
+        # FIXME Use an associative array for COLUMNS
+        local CUSTOM_COLUMNS
+        local cols_custom=()
+        local after
+        local val="$2"
 
-        COLUMN_NAMES=() # Reset
+        # If cols value starts with a '+', append to the default columns
+        if [[ "${val:0:1}" == "+" ]]
+        then
+          val="${val:1}"
+          after=1
+        else
+          CUSTOM_COLUMNS=1
+        fi
+
+        mapfile -t cols_custom < <(tr ',' '\n' <<< "$val")
+
+        # COLUMN_NAMES=() # Reset
         local col col_capitalized
-        for col in "${JSON_COLUMNS[@]}"
+        for col in "${cols_custom[@]}"
         do
           # Uppercase all if col name is 1 or 2 chars only
           if [[ ${#col} -lt 3 ]]
@@ -858,8 +878,17 @@ main() {
                   $i=toupper(substr($i,1,1)) tolower(substr($i,2))
               }1' <<< "${col//./ }")"
           fi
-          COLUMN_NAMES+=("$col_capitalized")
+
+          if [[ -n "$after" ]]
+          then
+            JSON_COLUMNS_AFTER+=("$col")
+            COLUMN_NAMES_AFTER+=("$col_capitalized")
+          else
+            JSON_COLUMNS+=("$col")
+            COLUMN_NAMES+=("$col_capitalized")
+          fi
         done
+
         shift 2
         ;;
       -s|--sort*)
@@ -893,8 +922,8 @@ main() {
 
   if [[ -z "$CUSTOM_COLUMNS" ]]
   then
-    JSON_COLUMNS=(name description)
-    COLUMN_NAMES=(Name Description)
+    JSON_COLUMNS+=(name description)
+    COLUMN_NAMES+=(Name Description)
   fi
 
   case "$OUTPUT" in
@@ -919,7 +948,6 @@ main() {
   case "$ACTION" in
     # Shorthands
     c|cl|cluster*)
-      command=(netbox_list_clusters)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
         JSON_COLUMNS+=(group.name)
@@ -1062,6 +1090,13 @@ main() {
   if ! JSON_DATA="$("${command[@]}" "$@")"
   then
     return 1
+  fi
+
+  # Append custom columns to the end (if they were prefixed with '+' on the CLI)
+  if [[ "${#JSON_COLUMNS_AFTER[@]}" -gt 0 ]]
+  then
+    JSON_COLUMNS=("${JSON_COLUMNS[@]}" "${JSON_COLUMNS_AFTER[@]}")
+    COLUMN_NAMES=("${COLUMN_NAMES[@]}" "${COLUMN_NAMES_AFTER[@]}")
   fi
 
   case "$OUTPUT" in
