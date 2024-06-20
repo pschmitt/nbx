@@ -991,6 +991,7 @@ main() {
         local col col_capitalized
         for col in "${cols_custom[@]}"
         do
+          col=${col//_/ }
           # Uppercase all if col name is 1 or 2 chars only
           if [[ ${#col} -lt 3 ]]
           then
@@ -1246,16 +1247,18 @@ main() {
       ;;
   esac
 
-  if ! JSON_DATA="$("${command[@]}" "$@")"
-  then
-    return 1
-  fi
-
   # Append custom columns to the end (if they were prefixed with '+' on the CLI)
   if [[ "${#JSON_COLUMNS_AFTER[@]}" -gt 0 ]]
   then
     JSON_COLUMNS=("${JSON_COLUMNS[@]}" "${JSON_COLUMNS_AFTER[@]}")
     COLUMN_NAMES=("${COLUMN_NAMES[@]}" "${COLUMN_NAMES_AFTER[@]}")
+  fi
+
+  echo_debug "Cols: ${JSON_COLUMNS[*]}"
+
+  if ! JSON_DATA="$("${command[@]}" "$@")"
+  then
+    return 1
   fi
 
   case "$OUTPUT" in
