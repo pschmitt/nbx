@@ -28,6 +28,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [sites]="dcim/sites/"
   [tenants]="tenancy/tenants/"
   [virtual-machines]="virtualization/virtual-machines/"
+  [wireless-lans]="wireless/wireless-lans/"
 )
 
 usage() {
@@ -1330,6 +1331,20 @@ main() {
         command=(netbox_graphql_objects virtual_machine "${JSON_COLUMNS[@]}")
       else
         command=(netbox_list_virtual_machines)
+      fi
+      ;;
+    wifi|wireless-lans)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(site.name)
+        COLUMN_NAMES+=(Site)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(netbox_graphql_objects wireless_lan "${JSON_COLUMNS[@]}")
+      else
+        command=(netbox_list_wireless_lans)
       fi
       ;;
 
