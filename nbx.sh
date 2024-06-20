@@ -41,6 +41,10 @@ usage() {
   echo "  tenants       [FILTERS]   List tenants"
   echo
   echo
+  echo "META ACTIONS"
+  echo "  cols OBJECT_TYPE   List available columns for an object type"
+  echo
+  echo
   echo "WORKFLOWS COMMANDS"
   echo
   echo "  assign-to-cluster CLUSTER [FILTERS]  Assign devices to a cluster"
@@ -233,9 +237,28 @@ netbox_curl_raw() {
   return 0
 }
 
+netbox_rest_list_columns() {
+  local object_type="${1}"
+  if [[ "$object_type" != *s ]]
+  then
+    object_type+="s"
+  fi
+
+  local endpoint="${NETBOX_API_ENDPOINTS[${object_type}]}"
+  if [[ -z "$endpoint" ]]
+  then
+    echo_error "Unknown object type: $object_type"
+    echo_error "Available object types: ${!NETBOX_API_ENDPOINTS[*]}"
+    return 2
+  fi
+
+  netbox_curl_raw "$endpoint" | \
+    jq -er '[.results[0] | keys[]] | sort[]'
+}
+
 netbox_graphql() {
   local raw
-  local jq_filter=".data"
+  local jq_filter=".data | to_entries[].value"
 
   while [[ "${#@}" -gt 0 ]]
   do
@@ -261,7 +284,6 @@ netbox_graphql() {
   # NOTE We need to set the full URL here to prevent curl_raw to prepend
   # NETBOX_URL/api to the endpoint URL
   local endpoint="${NETBOX_URL}/graphql/"
-
   if [[ "${#@}" -lt 1 ]]
   then
     echo_error "Missing GraphQL query"
@@ -301,9 +323,7 @@ netbox_graphql() {
     data=$(jq -nc \
       --arg query "$query" \
       --arg fields "$fields_ql" '
-        {
-          query: "query {\($query) {\($fields)}}"
-        }
+        { query: "query {\($query) {\($fields)}}" }
       ')
   fi
 
@@ -390,6 +410,23 @@ to_graphql() {
 
   # Print the final result
   echo "$top_level_output"
+}
+
+netbox_graphql_list_columns() {
+  local object_type="${1%%s}"
+
+  netbox_graphql --raw '
+    {
+      __type(name: "'"${object_type^}Type"'") {
+        fields {
+          name
+          type {
+            name
+          }
+        }
+      }
+    }
+  ' | jq -er '[.fields[].name]|sort[]'
 }
 
 netbox_graphql_objects() {
@@ -970,6 +1007,23 @@ main() {
   local command=()
 
   case "$ACTION" in
+    # Meta
+    cols|columns)
+      if [[ -z "$1" ]]
+      then
+        echo_error "Missing object type"
+        usage >&2
+        return 2
+      fi
+      if [[ -n "$GRAPHQL" ]]
+      then
+        netbox_graphql_list_columns "$@"
+      else
+        netbox_rest_list_columns "$@"
+      fi
+      return "$?"
+      ;;
+
     # Shorthands
     c|cl|cluster*)
       if [[ -z "$CUSTOM_COLUMNS" ]]
