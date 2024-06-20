@@ -433,7 +433,7 @@ netbox_graphql_list_columns() {
   )
 
   local graphql_type="${object_type^}Type"
-  if ! grep -w "${graphql_type}" <<< "${supported_types[*]}"
+  if ! grep -qw "${graphql_type}" <<< "${supported_types[*]}"
   then
     echo_error "Unknown object type: $object_type"
     echo_info "Supported types: ${supported_types[*]//Type/}"
