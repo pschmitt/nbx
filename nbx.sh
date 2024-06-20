@@ -968,6 +968,8 @@ pretty_output() {
               end
             end
           ) as $out |
+
+          # Truncate if needed (and requested)
           40 as $maxwidth |
           if ($compact and (($out | length) > $maxwidth))
           then
@@ -975,7 +977,9 @@ pretty_output() {
           else
             $out
           end
+
         else
+          # Regular values (strings and unhandled objects)
           .
         end
       ) | @tsv
