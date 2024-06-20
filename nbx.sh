@@ -1101,6 +1101,12 @@ main() {
         command=(netbox_graphql_objects cluster "${JSON_COLUMNS[@]}")
       else
         command=(netbox_list_clusters)
+        # FIXME Add support for graphql
+        if [[ -z "$CUSTOM_COLUMNS" ]]
+        then
+          JSON_COLUMNS+=(device_count)
+          COLUMN_NAMES+=(Devices)
+        fi
       fi
       ;;
     d|dev|devices)
