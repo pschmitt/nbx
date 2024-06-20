@@ -180,6 +180,20 @@ arr_remove() {
   done
 }
 
+arr_remove_at() {
+  local index="$1"
+  shift
+  local arr=("$@")
+
+  unset -v "arr[${index}]"
+
+  local i
+  for i in "${arr[@]}"
+  do
+    echo "$i"
+  done
+}
+
 arr_replace() {
   local elem="$1"
   local replacement="$2"
@@ -211,6 +225,24 @@ arr_replace_all() {
   do
     echo "${i//${search}/${replacement}}"
   done
+}
+
+arr_index_of() {
+  local val="$1"
+  shift
+  local arr=("$@")
+
+  local i
+  for i in "${!arr[@]}"
+  do
+    if [[ "${arr[$i]}" == "$val" ]]
+    then
+      echo "$i"
+      return 0
+    fi
+  done
+
+  return 1
 }
 
 # shellcheck disable=SC2120
@@ -1011,6 +1043,7 @@ main() {
 
   JSON_COLUMNS=()
   JSON_COLUMNS_AFTER=()
+  JSON_COLUMNS_REMOVE=()
   COLUMN_NAMES=()
   COLUMN_NAMES_AFTER=()
 
@@ -1082,6 +1115,7 @@ main() {
         local CUSTOM_COLUMNS
         local cols_custom=()
         local after
+        local remove
         local val="$2"
 
         # If cols value starts with a '+', append to the default columns
@@ -1089,6 +1123,10 @@ main() {
         then
           val="${val:1}"
           after=1
+        elif [[ "${val:0:1}" == "-" ]]
+        then
+          val="${val:1}"
+          remove=1
         else
           # Setting CUSTOM_COLUMNS will override the default columns
           CUSTOM_COLUMNS=1
@@ -1117,6 +1155,9 @@ main() {
           then
             JSON_COLUMNS_AFTER+=("$col")
             COLUMN_NAMES_AFTER+=("$col_capitalized")
+          elif [[ -n "$remove" ]]
+          then
+            JSON_COLUMNS_REMOVE+=("$col")
           else
             JSON_COLUMNS+=("$col")
             COLUMN_NAMES+=("$col_capitalized")
@@ -1469,6 +1510,20 @@ main() {
     JSON_COLUMNS=("${JSON_COLUMNS[@]}" "${JSON_COLUMNS_AFTER[@]}")
     COLUMN_NAMES=("${COLUMN_NAMES[@]}" "${COLUMN_NAMES_AFTER[@]}")
   fi
+
+  # Remove columns from the list (if they were prefixed with '-' on the CLI)
+  local col_val col_index
+  for col_val in "${JSON_COLUMNS_REMOVE[@]}"
+  do
+    col_index=$(arr_index_of "$col_val" "${JSON_COLUMNS[@]}")
+    if [[ -z "$col_index" ]]
+    then
+      echo_warning "Column '$col' not found in the list of columns, skipping"
+      continue
+    fi
+    mapfile -t JSON_COLUMNS < <(arr_remove_at "$col_index" "${JSON_COLUMNS[@]}")
+    mapfile -t COLUMN_NAMES < <(arr_remove_at "$col_index" "${COLUMN_NAMES[@]}")
+  done
 
   echo_debug "Cols: ${JSON_COLUMNS[*]}"
 
