@@ -1306,6 +1306,12 @@ main() {
       fi
       ;;
     re|region*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(parent.name)
+        COLUMN_NAMES+=(Parent)
+      fi
+
       if [[ -n "$GRAPHQL" ]]
       then
         command=(netbox_graphql_objects region "${JSON_COLUMNS[@]}")
