@@ -1415,6 +1415,9 @@ main() {
       ;;
   esac
 
+  # FIXME This needs to be called BEFORE we do the graphql queries
+  # Otherwise we won't have the correct column names (user-appended
+  # cols will be missing)
   # Append custom columns to the end (if they were prefixed with '+' on the CLI)
   if [[ "${#JSON_COLUMNS_AFTER[@]}" -gt 0 ]]
   then
