@@ -50,7 +50,7 @@ usage() {
   echo "  --compact          Truncate long fields"
   echo "  --header           Keep header when piping output (default: remove)"
   echo "  -I, --with-id      Include ID column"
-  echo "  --columns COLUMNS  List of columns to display"
+  echo "  --columns COLUMNS  List of columns to display (prefix with '+' to append, '-' to remove)"
   echo "  -s, --sort FIELD   Sort by field/column"
   echo
   echo
@@ -644,6 +644,9 @@ netbox_graphql_objects() {
   then
     fields=(id name)
   fi
+
+  # sanitize fields
+  # mapfile -t fields < <(arr_replace_all "[]" "" "${fields[@]}")
 
   local key="${object_type}_list"
   local q="${key}"
