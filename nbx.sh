@@ -100,8 +100,26 @@ echo_error() {
 
 echo_debug() {
   [[ -z "${DEBUG}" ]] && return 0
-  echo -en "\e[1m\e[35mDBG\e[0m " >&2
-  echo "$*" >&2
+
+  {
+    echo -en "\e[1m\e[35mDBG\e[0m "
+
+    if [[ -z "$DEBUG_TRUNCATE" ]] || [[ -n "$NO_DEBUG_TRUNCATE" ]]
+    then
+      echo "$*"
+    else
+      local m="$*"
+      local max_len="${DEBUG_TRUNCATE_LEN:-120}"
+      if [[ ${#m} -lt "$max_len" ]]
+      then
+        echo "$m"
+        return 0
+      fi
+
+      head -c "$max_len" <<<"$m"
+      echo "…"
+    fi
+  } >&2
 }
 
 echo_dryrun() {
@@ -238,7 +256,7 @@ netbox_curl_raw() {
 
   if [[ -n "$DEBUG" ]]
   then
-    echo_debug "curl ${args[*]@Q}"
+    NO_DEBUG_TRUNCATE=1 echo_debug "curl ${args[*]@Q}"
   fi
 
   local http_code output raw_output
