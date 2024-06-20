@@ -793,6 +793,7 @@ resolve_filters() {
 
   local filter key val obj matches search_prop
   local -A data
+  local rc=0
 
   for filter in "$@"
   do
@@ -838,14 +839,16 @@ resolve_filters() {
           case "${#matches[@]}" in
             0)
               echo_error "No matching $obj found for '$val'"
-              return 1
+              rc=1
+              continue
               ;;
             1)
               val="${matches[0]}"
               ;;
             *)
               echo_error "Ambiguous $obj name '$val': ${matches[*]}"
-              return 1
+              rc=1
+              continue
               ;;
           esac
         fi
@@ -857,6 +860,8 @@ resolve_filters() {
         ;;
     esac
   done
+
+  return "$rc"
 }
 
 netbox_assign_devices_to_cluster() {
