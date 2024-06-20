@@ -1135,12 +1135,14 @@ main() {
           device_type.model
           role.name
           rack.name
+          primary_ip4.address
         )
         COLUMN_NAMES+=(
           Manufacturer
           Model
           Role
           Rack
+          "Primary IPv4"
         )
       fi
 
