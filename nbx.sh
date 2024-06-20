@@ -419,11 +419,11 @@ netbox_graphql_list_columns() {
   mapfile -t supported_types < <(
     netbox_graphql --raw '
       {
-      __schema {
-        types {
-          name
+        __schema {
+          types {
+            name
+          }
         }
-      }
       }
     ' | jq -er '[
       .types[] |
