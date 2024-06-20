@@ -159,13 +159,34 @@ arr_join() {
 }
 
 arr_remove() {
+  local elem="$1"
+  shift
   local arr=("$@")
 
   local i
   for i in "${arr[@]}"
   do
-    if [[ "$i" == "$1" ]]
+    if [[ "$i" == "$elem" ]]
     then
+      continue
+    fi
+
+    echo "$i"
+  done
+}
+
+arr_replace() {
+  local elem="$1"
+  local replacement="$2"
+  shift 2
+  local arr=("$@")
+
+  local i
+  for i in "${arr[@]}"
+  do
+    if [[ "$i" == "$elem" ]]
+    then
+      echo "$replacement"
       continue
     fi
 
@@ -1218,11 +1239,8 @@ main() {
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
         # ip-addresses have no name field
-        mapfile -t JSON_COLUMNS < <(arr_remove name "${JSON_COLUMNS[@]}")
-        mapfile -t COLUMN_NAMES < <(arr_remove Name "${COLUMN_NAMES[@]}")
-
-        JSON_COLUMNS=(address "${JSON_COLUMNS[@]}")
-        COLUMN_NAMES=("Address" "${COLUMN_NAMES[@]}")
+        mapfile -t JSON_COLUMNS < <(arr_replace name address "${JSON_COLUMNS[@]}")
+        mapfile -t COLUMN_NAMES < <(arr_replace Name Address "${COLUMN_NAMES[@]}")
       fi
 
       if [[ -n "$GRAPHQL" ]]
