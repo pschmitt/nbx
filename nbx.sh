@@ -27,6 +27,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [regions]="dcim/regions/"
   [sites]="dcim/sites/"
   [tenants]="tenancy/tenants/"
+  [virtual-machines]="virtualization/virtual-machines/"
 )
 
 usage() {
@@ -1314,6 +1315,20 @@ main() {
         command=(netbox_graphql_objects tenant "${JSON_COLUMNS[@]}")
       else
         command=(netbox_list_tenants)
+      fi
+      ;;
+    vm|virtual-machine*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(cluster.name)
+        COLUMN_NAMES+=(Cluster)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(netbox_graphql_objects virtual_machine "${JSON_COLUMNS[@]}")
+      else
+        command=(netbox_list_virtual_machines)
       fi
       ;;
 
