@@ -73,8 +73,8 @@ usage() {
   echo
   echo "RAW COMMANDS"
   echo
-  echo "  graphql  QUERY FIELDS                GraphQL query"
-  echo "  raw      ENDPOINT                    Fetch raw data from an endpoint"
+  echo "  graphql  [--raw] QUERY [FIELDS]    GraphQL query"
+  echo "  raw      ENDPOINT                  Fetch raw data from an endpoint (REST)"
 }
 
 echo_info() {
