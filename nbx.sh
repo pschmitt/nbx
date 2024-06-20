@@ -8,6 +8,7 @@ CONFIRM="${CONFIRM:-1}"
 DRY_RUN="${DRY_RUN:-}"
 DEBUG="${DEBUG:-}"
 GRAPHQL="${GRAPHQL:-}"
+KEEP_HEADER="${KEEP_HEADER:-}"
 NO_COLOR="${NO_COLOR:-}"
 NO_HEADER="${NO_HEADER:-}"
 NO_WARNINGS="${NO_WARNINGS:-}"
@@ -28,6 +29,24 @@ declare -A NETBOX_API_ENDPOINTS=(
 
 usage() {
   echo "Usage: $(basename "$0") [options] ACTION [ARGS]" >&2
+  echo
+  echo "GLOBAL OPTIONS"
+  echo "  -a, --api TOKEN    Netbox API Token (default: \$NETBOX_API_TOKEN)"
+  echo "  -u, --url URL      Netbox URL (default: \$NETBOX_URL)"
+  echo "  -g, --graphql      Use GraphQL API instead of REST API (list actions only)"
+  echo "  -D, --debug        Enable debug output"
+  echo "  -k, --dry-run      Dry-run mode"
+  echo "  --confirm          Confirm before executing actions"
+  echo "  --no-confirm       Do not confirm before executing actions"
+  echo "  -o, --output TYPE  Output format: pretty (default), json"
+  echo "  -j, --json         Output format: json"
+  echo "  -N, --no-header    Do not print header"
+  echo "  -c, --no-color     Disable color output"
+  echo "  --compact          Truncate long fields"
+  echo "  --header           Keep header when piping output (default: remove)"
+  echo "  -I, --with-id      Include ID column"
+  echo "  --columns COLUMNS  List of columns to display"
+  echo "  -s, --sort FIELD   Sort by field/column"
   echo
   echo "LIST ACTIONS"
   echo
@@ -926,6 +945,10 @@ main() {
         COMPACT=1
         shift 1
         ;;
+      --header|--keep-header)
+        KEEP_HEADER=1
+        shift
+        ;;
       -I|--id*|--with-id)
         WITH_ID_COL=1
         shift
@@ -1017,7 +1040,7 @@ main() {
       # Skip header and color if output is not a terminal
       if [[ ! -t 1 ]]
       then
-        NO_HEADER=1
+        [[ -z "$KEEP_HEADER" ]] && NO_HEADER=1
         NO_COLOR=1
       fi
       ;;
