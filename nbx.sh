@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-NETBOX_URL="${NETBOX_URL:-http://localhost:8000}"
+NETBOX_URL="${NETBOX_URL:-https://demo.netbox.dev}"
 NETBOX_API_TOKEN="${NETBOX_API_TOKEN:-}"
 
 COMPACT="${COMPACT:-}"
