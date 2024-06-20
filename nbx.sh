@@ -743,8 +743,21 @@ netbox_assign_devices_to_cluster() {
     return 1
   fi
 
+  local device_data
+  device_data=$(netbox_list_devices "${device_filters[@]}")
+  # Display device data for easier checking
+  pretty_output <<< "$device_data" >&2
+
+  if jq --argjson cluster_id "$cluster_id" -er '
+      all(.[]; .cluster.id == $cluster_id)
+     ' <<< "$device_data" &>/dev/null
+  then
+    echo_success "Nothing to do. All matched devices are already assigned to cluster $cluster"
+    return 0
+  fi
+
   local device_ids
-  device_ids=$(netbox_list_devices "${device_filters[@]}" | jq -er '[.[].id]')
+  device_ids=$(jq -er '[.[].id]' <<< "$device_data")
 
   # NOTE below assumes that device IDs are provided as [int]
   # device_ids="$(arr_to_json "$@")"
@@ -1200,6 +1213,24 @@ main() {
 
     # Workflows
     assign-to-cluster)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(
+          device_type.manufacturer.name
+          device_type.model
+          role.name
+          rack.name
+          cluster.name
+        )
+        COLUMN_NAMES+=(
+          Manufacturer
+          Model
+          Role
+          Rack
+          Cluster
+        )
+      fi
+
       command=(netbox_assign_devices_to_cluster)
       if [[ "$OUTPUT" != "json" ]]
       then
