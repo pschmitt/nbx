@@ -31,6 +31,7 @@ usage() {
   echo "Usage: $(basename "$0") [options] ACTION [ARGS]" >&2
   echo
   echo "GLOBAL OPTIONS"
+  echo
   echo "  -a, --api TOKEN    Netbox API Token (default: \$NETBOX_API_TOKEN)"
   echo "  -u, --url URL      Netbox URL (default: \$NETBOX_URL)"
   echo "  -g, --graphql      Use GraphQL API instead of REST API (list actions only)"
@@ -61,6 +62,7 @@ usage() {
   echo
   echo
   echo "META ACTIONS"
+  echo
   echo "  cols OBJECT_TYPE   List available columns for an object type"
   echo
   echo
