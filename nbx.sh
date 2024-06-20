@@ -50,6 +50,7 @@ usage() {
   echo "  --columns COLUMNS  List of columns to display"
   echo "  -s, --sort FIELD   Sort by field/column"
   echo
+  echo
   echo "LIST ACTIONS"
   echo
   echo "  clusters      [FILTERS]   List clusters"
@@ -458,13 +459,14 @@ to_graphql() {
 
 netbox_graphql_list_columns() {
   local object_type="$1"
+  shift
 
   case "$object_type" in
     ip-addr*|ip_addr*|IPAddr*)
       object_type="IPAddress"
       ;;
     *)
-      object_type="${1%%s}"
+      object_type="${object_type%%s}"
       ;;
   esac
 
@@ -517,7 +519,7 @@ netbox_graphql_objects() {
       object_type="ip_address"
       ;;
     *)
-      object_type="${1%%s}"
+      object_type="${object_type%%s}"
       ;;
   esac
 
