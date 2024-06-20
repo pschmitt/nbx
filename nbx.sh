@@ -1338,8 +1338,12 @@ main() {
           "${JSON_COLUMNS[@]}"
           "${JSON_COLUMNS_AFTER[@]}"
         )
+        JSON_COLUMNS+=(assigned_object.name)
+        COLUMN_NAMES+=(Device)
       else
         command=(netbox_list_ip_addresses)
+        JSON_COLUMNS+=(assigned_object.device.name assigned_object.name)
+        COLUMN_NAMES+=(Device Port)
       fi
       ;;
     ipf|pref*)
