@@ -1704,7 +1704,7 @@ main() {
       fi
       ;;
     raw)
-      command=(netbox_curl)
+      command=(netbox_curl_raw)
       if [[ "$OUTPUT" != "json" ]]
       then
         echo_warning "Output format forced to 'json' for raw curl requests"
