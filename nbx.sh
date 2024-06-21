@@ -546,6 +546,170 @@ to_graphql() {
   echo "$top_level_output"
 }
 
+netbox_graphql_introspect() {
+  local output raw args
+
+  while [[ -n "$*" ]]
+  do
+    case "$1" in
+      --raw)
+        raw=1
+        shift
+        ;;
+      --types)
+        output=types
+        shift
+        ;;
+      --query)
+        output=query
+        shift
+        ;;
+      --cols|--columns|--fields)
+        output=fields
+        shift
+        ;;
+      --)
+        shift
+        args+=("$@")
+        break
+        ;;
+      *)
+        args+=("$1")
+        shift
+        ;;
+    esac
+  done
+
+  set -- "${args[@]}"
+
+  local query
+  if [[ "$output" == "query" ]]
+  then
+    query='
+      {
+        __type(name: "Query") {
+          fields {
+            name
+            args {
+              name
+              type {
+                kind
+                name
+                ofType {
+                  name
+                  kind
+                }
+              }
+            }
+          }
+        }
+      }
+    '
+  else
+    local object_type="$1"
+    shift
+
+    case "$object_type" in
+      ip-addr*|ip_addr*|IPAddr*)
+        object_type="IPAddress"
+        ;;
+      ip-pref*|pref*|IPPref*)
+        object_type="Prefix"
+        ;;
+      *)
+        object_type="${object_type%%s}"
+        ;;
+    esac
+
+    local graphql_type="${object_type^}Type"
+
+    query='
+      {
+        __type(name: "'"${graphql_type}"'") {
+          fields {
+            name
+            type {
+              name
+              kind
+            }
+          }
+        }
+      }
+    '
+  fi
+
+  local res
+  res=$(netbox_graphql --raw "$query")
+
+  if [[ -n "$raw" ]]
+  then
+    printf '%s\n' "$res"
+    return 0
+  fi
+
+  case "$output" in
+    query)
+      local func="$1"
+      local arg="$2"
+
+      if [[ -z "$func" ]]
+      then
+        echo_error "Missing function name"
+        return 1
+      fi
+
+      if [[ -z "$arg" ]]
+      then
+        jq -er \
+          --arg func "$func" '
+            .fields[] | select(.name == $func) | .args[] |
+            .name
+            + " " +
+            (
+              if (.type.name != null)
+              then
+                (.type.name | ascii_downcase)
+              elif (.type.kind == "LIST")
+              then
+                (.type.ofType.name // "null" | ascii_downcase) + "[]"
+              else
+                .type.kind
+              end
+            )
+          ' <<< "$res"
+
+        return "$?"
+      fi
+
+      jq -er \
+        --arg func "$func" \
+        --arg arg "$arg" '
+          .fields[] | select(.name == $func) | .args[] | select(.name == $arg) |
+          .type.name
+        ' <<< "$res"
+      ;;
+    fields)
+      jq -er '.fields[].name' <<< "$res"
+      ;;
+    types)
+      local field="$1"
+      if [[ -n "$field" ]]
+      then
+        jq -er --arg field "$field" '
+          .fields[] | select(.name == $field) | .type.name
+        ' <<< "$res"
+      else
+        # Return all
+        jq -er '.fields[].type.name' <<< "$res"
+      fi
+      ;;
+    *)
+      echo_error "Unknown output value: $output"
+      return 1
+      ;;
+  esac
+}
+
 netbox_graphql_list_columns() {
   local object_type="$1"
   shift
@@ -558,7 +722,6 @@ netbox_graphql_list_columns() {
       object_type="${object_type%%s}"
       ;;
   esac
-
 
   local supported_types
   mapfile -t supported_types < <(
