@@ -776,18 +776,38 @@ netbox_graphql_objects() {
   esac
 
   local -a args filters
-  local key val
 
   # shellcheck disable=SC2046
   set -- $(TARGET_OBJECT="$object_type" resolve_filters "$@")
 
+  local graphql_func="${object_type}_list"
+
+  local -A graphql_args
+  local line key val
+
+  while read -r line
+  do
+    read -r key val <<< "$line"
+    graphql_args[$key]="$val"
+  done < <(netbox_graphql_introspect --query "$graphql_func")
+
+  local arg_type
   while [[ -n $* ]]
   do
     case "$1" in
       *=*)
         # convert filters like rack_id=691 to GraphQL format (rack_id: "691")
         IFS="=" read -r key val <<< "$1"
-        filters+=("${key}:\"${val}\"")
+
+        arg_type="${graphql_args[$key]}"
+        case "$arg_type" in
+          int)
+            filters+=("${key}:${val}")
+            ;;
+          *)
+            filters+=("${key}:\"${val}\"")
+            ;;
+        esac
         shift
         ;;
       --)
@@ -813,15 +833,14 @@ netbox_graphql_objects() {
   # sanitize fields
   # mapfile -t fields < <(arr_replace_all "[]" "" "${fields[@]}")
 
-  local key="${object_type}_list"
-  local q="${key}"
+  local q="${graphql_func}"
 
   if [[ "${#filters[@]}" -gt 0 ]]
   then
     q+="($(arr_join ', ' "${filters[@]}"))"
   fi
 
-  netbox_graphql --jq ".data[\"${key}\"]" \
+  netbox_graphql --jq ".data[\"${graphql_func}\"]" \
     "$q" "${fields[@]}"
 }
 
