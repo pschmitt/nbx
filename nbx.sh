@@ -1516,6 +1516,9 @@ main() {
         mapfile -t COLUMN_NAMES < <(arr_replace Name Address "${COLUMN_NAMES[@]}")
       fi
 
+      JSON_COLUMNS+=(dns_name tenant.name)
+      COLUMN_NAMES+=(DNS Tenant)
+
       if [[ -n "$GRAPHQL" ]]
       then
         command=(
