@@ -1319,26 +1319,29 @@ main() {
         local val="$2"
 
         # If cols value starts with a '+', append to the default columns
-        if [[ "${val:0:1}" == "+" ]]
-        then
-          val="${val:1}"
-          after=1
-        elif [[ "${val:0:1}" == "-" ]]
-        then
-          val="${val:1}"
-          remove=1
-        else
-          # Setting CUSTOM_COLUMNS will override the default columns
-          CUSTOM_COLUMNS=1
-        fi
+        local first_char="${val:0:1}"
+        case "$first_char" in
+          +)
+            val="${val:1}"
+            after=1
+            ;;
+          -)
+            val="${val:1}"
+            remove=1
+            ;;
+          *)
+            # Setting CUSTOM_COLUMNS will override the default columns
+            CUSTOM_COLUMNS=1
+            ;;
+        esac
 
         mapfile -t cols_custom < <(tr ',' '\n' <<< "$val")
 
         # COLUMN_NAMES=() # Reset
-        local col col_capitalized
+        local col col_no_undies col_capitalized
         for col in "${cols_custom[@]}"
         do
-          col=${col//_/ }
+          col_no_undies=${col//_/ }
           # Uppercase all if col name is 1 or 2 chars only
           if [[ ${#col} -lt 3 ]]
           then
@@ -1348,7 +1351,7 @@ main() {
               {
                 for(i=1;i<=NF;i++)
                   $i=toupper(substr($i,1,1)) tolower(substr($i,2))
-              }1' <<< "${col//./ }")"
+              }1' <<< "${col_no_undies//./ }")"
           fi
 
           if [[ -n "$after" ]]
@@ -1762,7 +1765,7 @@ main() {
     mapfile -t COLUMN_NAMES < <(arr_remove_at "$col_index" "${COLUMN_NAMES[@]}")
   done
 
-  echo_debug "Cols: ${JSON_COLUMNS[*]}"
+  echo_debug "Columns: ${JSON_COLUMNS[*]}"
 
   if ! JSON_DATA="$("${command[@]}" "$@")"
   then
