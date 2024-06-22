@@ -1128,6 +1128,7 @@ resolve_filters() {
               esac
               ;;
             type)
+              # For clusters, the "type" refers to a cluster_type
               case "$target_obj" in
                 cluster*)
                   echo_debug "Rewrote filter '${target_obj}' to 'cluster_type'"
