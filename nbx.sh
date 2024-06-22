@@ -422,6 +422,7 @@ netbox_curl_raw() {
   output="$(head -n -1 <<< "$raw_output")"
 
   printf '%s\n' "$output"
+
   if [[ "$http_code" != 2* ]]
   then
     echo_error "HTTP code $http_code"
@@ -846,14 +847,18 @@ netbox_graphql_objects() {
 
   local graphql_func="${object_type}_list"
 
-  local -A graphql_args
-  local line key val
+  # Only introspect if necessary (at least one filter provided)
+  if [[ "$*" == *=* ]]
+  then
+    local -A graphql_args
+    local line key val
 
-  while read -r line
-  do
-    read -r key val <<< "$line"
-    graphql_args[$key]="$val"
-  done < <(netbox_graphql_introspect --query "$graphql_func")
+    while read -r line
+    do
+      read -r key val <<< "$line"
+      graphql_args[$key]="$val"
+    done < <(netbox_graphql_introspect --query "$graphql_func")
+  fi
 
   local arg_type
   local -A filter_values
