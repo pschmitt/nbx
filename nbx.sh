@@ -69,7 +69,7 @@ usage() {
   echo "  -I, --with-id      Include ID column"
   echo "  -C, --comments     Include comments column (shorthand for --cols +comments)"
   echo "  --columns COLUMNS  List of columns to display (prefix with '+' to append, '-' to remove)"
-  echo "  -s, --sort FIELD   Sort by field/column"
+  echo "  -s, --sort FIELD   Sort by field/column (prepend with '-' to sort in reverse order)"
   echo
   echo
   echo "LIST ACTIONS"
