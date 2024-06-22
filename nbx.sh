@@ -17,6 +17,7 @@ SORT_BY="${SORT_BY:-name}"
 WITH_ID_COL="${WITH_ID_COL:-}"
 
 declare -A NETBOX_API_ENDPOINTS=(
+  [aggregates]="ipam/aggregates/"
   [cables]="dcim/cables/"
   [circuits]="circuits/circuits/"
   [clusters]="virtualization/clusters/"
@@ -76,6 +77,7 @@ usage() {
   echo
   echo "LIST ACTIONS"
   echo
+  echo "  aggregates          [FILTERS]   List aggregates"
   echo "  cables              [FILTERS]   List cables"
   echo "  circuits            [FILTERS]   List circuits"
   echo "  clusters            [FILTERS]   List clusters"
@@ -1553,6 +1555,28 @@ main() {
       ;;
 
     # Shorthands
+    agg*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        # aggregates have no name field
+        mapfile -t JSON_COLUMNS < <(arr_replace name display "${JSON_COLUMNS[@]}")
+        mapfile -t COLUMN_NAMES < <(arr_replace Name Display "${COLUMN_NAMES[@]}")
+
+        JSON_COLUMNS+=(rir.name tenant.name)
+        COLUMN_NAMES+=(RIR Tenant)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects aggregate
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_aggregates)
+      fi
+      ;;
     cable*)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
