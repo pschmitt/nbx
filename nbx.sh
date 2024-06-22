@@ -113,13 +113,18 @@ echo_debug() {
 
   {
     echo -en "\e[1m\e[35mDBG\e[0m "
+    local m="$*"
+
+    if [[ -n "$DEBUG_REDACT" ]]
+    then
+      m=${m//$NETBOX_API_TOKEN/**redacted**}
+    fi
 
     if [[ -z "$DEBUG_TRUNCATE" ]] || [[ -n "$NO_DEBUG_TRUNCATE" ]]
     then
-      echo "$*"
+      echo "$m"
     else
-      local m="$*"
-      local max_len="${DEBUG_TRUNCATE_LEN:-120}"
+      local max_len="${DEBUG_TRUNCATE_LEN:-200}"
       if [[ ${#m} -lt "$max_len" ]]
       then
         echo "$m"
