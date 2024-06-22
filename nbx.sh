@@ -73,7 +73,8 @@ usage() {
   echo
   echo "META ACTIONS"
   echo
-  echo "  cols OBJECT_TYPE   List available columns for an object type"
+  echo "  cols OBJECT_TYPE                                     List available columns for an object type"
+  echo "  introspect (--types|--query|--fields) [OBJECT_TYPE]  Introspect GraphQL API"
   echo
   echo
   echo "WORKFLOWS COMMANDS"
@@ -1470,6 +1471,9 @@ main() {
         netbox_rest_list_columns "$@"
       fi
       return "$?"
+      ;;
+    introspect)
+      netbox_graphql_introspect "$@"
       ;;
 
     # Shorthands
