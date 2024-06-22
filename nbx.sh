@@ -40,6 +40,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [rack-reservations]="dcim/rack-reservations/"
   [regions]="dcim/regions/"
   [rirs]="ipam/rirs/"
+  [roles]="ipam/roles/"
   [services]="ipam/services/"
   [sites]="dcim/sites/"
   [tenants]="tenancy/tenants/"
@@ -110,6 +111,7 @@ usage() {
   echo "  virtual-chassis     [FILTERS]   List virtual chassis"
   echo "  vlans               [FILTERS]   List VLANs"
   echo "  vlan-groups         [FILTERS]   List VLAN groups"
+  echo "  vlan-roles          [FILTERS]   List Prefix & VLAN roles"
   echo "  vm                  [FILTERS]   List virtual machines"
   echo "  vrf                 [FILTERS]   List VRFs"
   echo "  wifi                [FILTERS]   List wireless LANs"
@@ -2137,6 +2139,23 @@ main() {
         fi
 
         command=(netbox_list_vlan_groups)
+      fi
+      ;;
+    vlr|vlan-r*|vlan*r*|role|roles)
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects role
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        if [[ -z "$CUSTOM_COLUMNS" ]]
+        then
+          JSON_COLUMNS+=(prefix_count vlan_count)
+          COLUMN_NAMES+=("Prefix Count" "VLAN Count")
+        fi
+        command=(netbox_list_roles)
       fi
       ;;
     vc|virtual-chassis|virt-cha*|virtch*)
