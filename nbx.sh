@@ -67,6 +67,7 @@ usage() {
   echo "  --compact          Truncate long fields"
   echo "  --header           Keep header when piping output (default: remove)"
   echo "  -I, --with-id      Include ID column"
+  echo "  -C, --comments     Include comments column (shorthand for --cols +comments)"
   echo "  --columns COLUMNS  List of columns to display (prefix with '+' to append, '-' to remove)"
   echo "  -s, --sort FIELD   Sort by field/column"
   echo
@@ -1393,6 +1394,11 @@ main() {
         ;;
       -I|--id*|--with-id)
         WITH_ID_COL=1
+        shift
+        ;;
+      -C|--comment*|--with-comment*)
+        JSON_COLUMNS_AFTER+=(comments)
+        COLUMN_NAMES_AFTER+=(Comments)
         shift
         ;;
       --columns|--cols)
