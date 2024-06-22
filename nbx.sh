@@ -31,7 +31,6 @@ declare -A NETBOX_API_ENDPOINTS=(
   [devices]="dcim/devices/"
   [device-roles]="dcim/device-roles/"
   [device-types]="dcim/device-types/"
-  [interfaces]="virtualization/interfaces/"
   [ip-addresses]="ipam/ip-addresses/"
   [locations]="dcim/locations/"
   [manufacturers]="dcim/manufacturers/"
@@ -51,6 +50,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [tags]="extras/tags/"
   [virtual-chassis]="dcim/virtual-chassis/"
   [virtual-machines]="virtualization/virtual-machines/"
+  [virtual-machine-interfaces]="virtualization/interfaces/"
   [vlans]="ipam/vlans/"
   [vlan-groups]="ipam/vlan-groups/"
   [vrfs]="ipam/vrfs/"
@@ -2253,7 +2253,7 @@ main() {
           "${JSON_COLUMNS_AFTER[@]}"
         )
       else
-        command=(netbox_list_interfaces)
+        command=(netbox_list_virtual_machine_interfaces)
       fi
       ;;
     vrf*)
