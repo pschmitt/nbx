@@ -22,6 +22,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [clusters]="virtualization/clusters/"
   [contacts]="tenancy/contacts/"
   [contact-groups]="tenancy/contact-groups/"
+  [contact-roles]="tenancy/contact-roles/"
   [devices]="dcim/devices/"
   [device-roles]="dcim/device-roles/"
   [ip-addresses]="ipam/ip-addresses/"
@@ -73,6 +74,8 @@ usage() {
   echo "  circuits          [FILTERS]   List circuits"
   echo "  clusters          [FILTERS]   List clusters"
   echo "  contacts          [FILTERS]   List contacts"
+  echo "  contact-groups    [FILTERS]   List contact groups"
+  echo "  contact-roles     [FILTERS]   List contact roles"
   echo "  devices           [FILTERS]   List devices"
   echo "  device-roles      [FILTERS]   List device roles"
   echo "  ip-addresses      [FILTERS]   List IP addresses"
@@ -1600,6 +1603,18 @@ main() {
         )
       else
         command=(netbox_list_contact_groups)
+      fi
+      ;;
+    contact-roles|con-role*|conrole*)
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects contact_role
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_contact_roles)
       fi
       ;;
     d|dev|devices)
