@@ -18,6 +18,7 @@ WITH_ID_COL="${WITH_ID_COL:-}"
 
 declare -A NETBOX_API_ENDPOINTS=(
   [cables]="dcim/cables/"
+  [circuits]="circuits/circuits/"
   [clusters]="virtualization/clusters/"
   [contacts]="tenancy/contacts/"
   [devices]="dcim/devices/"
@@ -64,6 +65,7 @@ usage() {
   echo "LIST ACTIONS"
   echo
   echo "  cables        [FILTERS]   List cables"
+  echo "  circuits      [FILTERS]   List circuits"
   echo "  clusters      [FILTERS]   List clusters"
   echo "  contacts      [FILTERS]   List contacts"
   echo "  devices       [FILTERS]   List devices"
@@ -1513,6 +1515,29 @@ main() {
         )
       else
         command=(netbox_list_cables)
+      fi
+      ;;
+    circuit*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        # circuits have no name field
+        mapfile -t JSON_COLUMNS < <(arr_remove name "${JSON_COLUMNS[@]}")
+        mapfile -t COLUMN_NAMES < <(arr_remove Name "${COLUMN_NAMES[@]}")
+
+        JSON_COLUMNS+=(provider.name type.name status.value termination_a.display termination_z.display)
+        COLUMN_NAMES+=(Provider Type Status "Side A" "Side Z")
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        mapfile -t JSON_COLUMNS < <(arr_replace status.value status "${JSON_COLUMNS[@]}")
+        command=(
+          netbox_graphql_objects circuit
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_circuits)
       fi
       ;;
     c|cl|cluster*)
