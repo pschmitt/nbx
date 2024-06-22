@@ -2053,8 +2053,8 @@ main() {
     vc|virtual-chassis|virt-cha*|virtch*)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
-        JSON_COLUMNS+=(master.name member_count)
-        COLUMN_NAMES+=(Master Members)
+        JSON_COLUMNS+=(domain master.name member_count)
+        COLUMN_NAMES+=(Domain Master Members)
       fi
 
       if [[ -n "$GRAPHQL" ]]
