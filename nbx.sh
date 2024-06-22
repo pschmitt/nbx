@@ -78,7 +78,7 @@ usage() {
   echo "  circuits            [FILTERS]   List circuits"
   echo "  clusters            [FILTERS]   List clusters"
   echo "  contacts            [FILTERS]   List contacts"
-  echo "  contact-assignments [FILTERS] List contact assignments"
+  echo "  contact-assignments [FILTERS]   List contact assignments"
   echo "  contact-groups      [FILTERS]   List contact groups"
   echo "  contact-roles       [FILTERS]   List contact roles"
   echo "  devices             [FILTERS]   List devices"
