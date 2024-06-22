@@ -31,6 +31,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [devices]="dcim/devices/"
   [device-roles]="dcim/device-roles/"
   [device-types]="dcim/device-types/"
+  [interfaces]="dcim/interfaces/"
   [ip-addresses]="ipam/ip-addresses/"
   [locations]="dcim/locations/"
   [manufacturers]="dcim/manufacturers/"
@@ -97,6 +98,7 @@ usage() {
   echo "  devices             [FILTERS]   List devices"
   echo "  device-roles        [FILTERS]   List device roles"
   echo "  device-types        [FILTERS]   List device types"
+  echo "  interfaces          [FILTERS]   List interfaces"
   echo "  ip-addresses        [FILTERS]   List IP addresses"
   echo "  locations           [FILTERS]   List locations"
   echo "  manufacturers       [FILTERS]   List manufacturers"
@@ -1851,6 +1853,26 @@ main() {
         )
       else
         command=(netbox_list_device_types)
+      fi
+      ;;
+    intf*|interf*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(device.name label enabled type.label)
+        COLUMN_NAMES+=(Device Label Enabled Type)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        mapfile -t JSON_COLUMNS < <(arr_replace type.label type "${JSON_COLUMNS[@]}")
+
+        command=(
+          netbox_graphql_objects interface
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_interfaces)
       fi
       ;;
     ip|ip-*)
