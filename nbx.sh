@@ -7,14 +7,21 @@ COMPACT="${COMPACT:-}"
 CONFIRM="${CONFIRM:-1}"
 DRY_RUN="${DRY_RUN:-}"
 DEBUG="${DEBUG:-}"
+DEBUG_REDACT="${DEBUG_REDACT:-}"
+DEBUG_TRUNCATE="${DEBUG_TRUNCATE:-}"
 GRAPHQL="${GRAPHQL:-}"
 KEEP_HEADER="${KEEP_HEADER:-}"
 NO_COLOR="${NO_COLOR:-}"
 NO_HEADER="${NO_HEADER:-}"
 NO_WARNINGS="${NO_WARNINGS:-}"
 OUTPUT="${OUTPUT:-pretty}"
+PEDANTIC="${PENDANTIC:-}"
 SORT_BY="${SORT_BY:-name}"
 WITH_ID_COL="${WITH_ID_COL:-}"
+
+mapfile -t CUSTOM_COLUMNS < <(tr ',' '\n' <<< "${CUSTOM_COLUMNS:-}")
+JSON_COLUMNS=()
+COLUMN_NAMES=()
 
 declare -A NETBOX_API_ENDPOINTS=(
   [aggregates]="ipam/aggregates/"
@@ -67,6 +74,8 @@ usage() {
   echo "  -u, --url URL      Netbox URL (default: \$NETBOX_URL)"
   echo "  -g, --graphql      Use GraphQL API instead of REST API (list actions only)"
   echo "  -D, --debug        Enable debug output"
+  echo "  -P, --pedantic     Enable pedantic mode (exit on any error)"
+  echo "  -W, --no-warnings  Disable warnings"
   echo "  -k, --dry-run      Dry-run mode"
   echo "  --confirm          Confirm before executing actions"
   echo "  --no-confirm       Do not confirm before executing actions"
@@ -930,6 +939,7 @@ netbox_graphql_objects() {
   set -- "${args[@]}"
 
   # Construct filters array
+  local -a filters
   for key in "${!filter_values[@]}"
   do
     if [[ "${filter_values[$key]}" == *","* ]]
@@ -1144,7 +1154,7 @@ resolve_filters() {
             obj="$obj_repl"
           fi
 
-          if [[ -z "${data[$obj]}" ]]
+          if [[ ! -v data[$obj] ]]
           then
             data[$obj]="$(netbox_graphql_objects "$obj" id "$search_prop")"
           fi
@@ -1164,6 +1174,10 @@ resolve_filters() {
           case "${#matches[@]}" in
             0)
               echo_error "No matching $obj found for '$val'"
+              if [[ -n "$PEDANTIC" ]]
+              then
+                exit 1
+              fi
               rc=1
               continue
               ;;
@@ -1405,6 +1419,11 @@ main() {
         ;;
       -D|--debug)
         DEBUG=1
+        shift
+        ;;
+      -P|--pedantic)
+        PEDANTIC=1
+        set -eu -o pipefail
         shift
         ;;
       -k|--dry-run|--dryrun)
