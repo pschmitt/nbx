@@ -30,6 +30,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [sites]="dcim/sites/"
   [tenants]="tenancy/tenants/"
   [virtual-machines]="virtualization/virtual-machines/"
+  [vrfs]="ipam/vrfs/"
   [wireless-lans]="wireless/wireless-lans/"
 )
 
@@ -71,6 +72,7 @@ usage() {
   echo "  sites         [FILTERS]   List sites"
   echo "  tenants       [FILTERS]   List tenants"
   echo "  vm            [FILTERS]   List virtual machines"
+  echo "  vrf           [FILTERS]   List VRFs"
   echo "  wifi          [FILTERS]   List wireless LANs"
   echo
   echo
@@ -1733,6 +1735,23 @@ main() {
         )
       else
         command=(netbox_list_virtual_machines)
+      fi
+      ;;
+    vrf*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(tenant.name)
+        COLUMN_NAMES+=(Tenant)
+      fi
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects vrf
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_vrfs)
       fi
       ;;
     wifi|wireless-lans)
