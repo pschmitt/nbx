@@ -17,6 +17,7 @@ SORT_BY="${SORT_BY:-name}"
 WITH_ID_COL="${WITH_ID_COL:-}"
 
 declare -A NETBOX_API_ENDPOINTS=(
+  [cables]="dcim/cables/"
   [clusters]="virtualization/clusters/"
   [contacts]="tenancy/contacts/"
   [devices]="dcim/devices/"
@@ -62,6 +63,7 @@ usage() {
   echo
   echo "LIST ACTIONS"
   echo
+  echo "  cables        [FILTERS]   List cables"
   echo "  clusters      [FILTERS]   List clusters"
   echo "  contacts      [FILTERS]   List contacts"
   echo "  devices       [FILTERS]   List devices"
@@ -1488,6 +1490,31 @@ main() {
       ;;
 
     # Shorthands
+    cable*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        # cables have no name field
+        # mapfile -t JSON_COLUMNS < <(arr_replace name label "${JSON_COLUMNS[@]}")
+        # mapfile -t COLUMN_NAMES < <(arr_replace Name Label "${COLUMN_NAMES[@]}")
+        mapfile -t JSON_COLUMNS < <(arr_remove name "${JSON_COLUMNS[@]}")
+        mapfile -t COLUMN_NAMES < <(arr_remove Name "${COLUMN_NAMES[@]}")
+        # JSON_COLUMNS+=(a_terminations.name b_terminations.name status tenant.name)
+        # COLUMN_NAMES+=("Termination A" "Termination B" Status Tenant)
+        JSON_COLUMNS+=(status tenant.name type)
+        COLUMN_NAMES+=(Status Tenant Type)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects cable
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_cables)
+      fi
+      ;;
     c|cl|cluster*)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
