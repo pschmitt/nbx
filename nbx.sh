@@ -132,6 +132,10 @@ echo_debug() {
   } >&2
 }
 
+echo_debug_no_trunc() {
+  NO_DEBUG_TRUNCATE=1 echo_debug "$@"
+}
+
 echo_dryrun() {
   echo -e "\e[1m\e[35mDRY\e[0m " >&2
   echo "$*" >&2
@@ -348,7 +352,7 @@ netbox_curl_raw() {
 
   if [[ -n "$DEBUG" ]]
   then
-    NO_DEBUG_TRUNCATE=1 echo_debug "curl ${args[*]@Q}"
+    echo_debug_no_trunc "curl ${args[*]@Q}"
   fi
 
   local http_code output raw_output
@@ -452,7 +456,7 @@ netbox_graphql() {
     local fields_ql
     fields_ql=$(to_graphql "${fields[@]}")
 
-    echo_debug "GraphQL fields: $fields_ql"
+    echo_debug_no_trunc "GraphQL fields: $fields_ql"
 
     data=$(jq -nc \
       --arg query "$query" \
@@ -461,7 +465,7 @@ netbox_graphql() {
       ')
   fi
 
-  echo_debug "GraphQL query: $data"
+  echo_debug_no_trunc "GraphQL query: $data"
 
   local rc=0
 
@@ -792,6 +796,7 @@ netbox_graphql_objects() {
   done < <(netbox_graphql_introspect --query "$graphql_func")
 
   local arg_type
+  local -A filter_values
   while [[ -n $* ]]
   do
     case "$1" in
@@ -802,12 +807,20 @@ netbox_graphql_objects() {
         arg_type="${graphql_args[$key]}"
         case "$arg_type" in
           int)
-            filters+=("${key}:${val}")
+            # Use value as-is
             ;;
           *)
-            filters+=("${key}:\"${val}\"")
+            val="\"$val\""
             ;;
         esac
+
+        if [[ -n "${filter_values[$key]}" ]]
+        then
+          # Append to existing value
+          val="${filter_values[$key]}, $val"
+        fi
+
+        filter_values[$key]="$val"
         shift
         ;;
       --)
@@ -822,6 +835,19 @@ netbox_graphql_objects() {
   done
 
   set -- "${args[@]}"
+
+  # Construct filters array
+  for key in "${!filter_values[@]}"
+  do
+    if [[ "${filter_values[$key]}" == *","* ]]
+    then
+      # Multiple values
+      filters+=("${key}: [${filter_values[$key]}]")
+    else
+      # Single value
+      filters+=("${key}:${filter_values[$key]}")
+    fi
+  done
 
   local fields=("$@")
   # Default fields
