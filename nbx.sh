@@ -1139,7 +1139,11 @@ resolve_filters() {
             --arg val "$val" \
             --arg search_prop "$search_prop" '
               .[] | select(
-                .[$search_prop] | test("^" + $val + "$"; "i")
+                # Check if the search property is not null first to avoid jq
+                # errors on stderr
+                (.[$search_prop] != null)
+                and
+                (.[$search_prop] | test("^" + $val + "$"; "i"))
               ) | .id
           ' <<< "${data[$obj]}")
 
