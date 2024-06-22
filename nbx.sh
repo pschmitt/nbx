@@ -30,6 +30,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [providers]="circuits/providers/"
   [racks]="dcim/racks/"
   [rack-roles]="dcim/rack-roles/"
+  [rack-reservations]="dcim/rack-reservations/"
   [regions]="dcim/regions/"
   [services]="ipam/services/"
   [sites]="dcim/sites/"
@@ -1745,7 +1746,31 @@ main() {
         command=(netbox_list_racks)
       fi
       ;;
-    rackr|rack-role*)
+    rackres*|rack-res*|reserv*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        # rack-reservations have no name field
+        mapfile -t JSON_COLUMNS < <(arr_remove name "${JSON_COLUMNS[@]}")
+        mapfile -t COLUMN_NAMES < <(arr_remove Name "${COLUMN_NAMES[@]}")
+
+        JSON_COLUMNS+=(rack.name units)
+        COLUMN_NAMES+=(Rack Units)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects rack_reservation
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        JSON_COLUMNS+=(user.username)
+        COLUMN_NAMES+=(User)
+        command=(netbox_list_rack_reservations)
+      fi
+      ;;
+    rackro*|rack-ro*)
       if [[ -n "$GRAPHQL" ]]
       then
         command=(
