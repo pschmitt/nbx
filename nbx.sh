@@ -1138,7 +1138,6 @@ resolve_filters() {
               ;;
           esac
 
-
           if [[ -z "${data[$obj]}" ]]
           then
             data[$obj]="$(netbox_graphql_objects "$obj" id "$search_prop")"
