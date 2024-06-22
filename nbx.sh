@@ -21,6 +21,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [circuits]="circuits/circuits/"
   [clusters]="virtualization/clusters/"
   [contacts]="tenancy/contacts/"
+  [contact-groups]="tenancy/contact-groups/"
   [devices]="dcim/devices/"
   [device-roles]="dcim/device-roles/"
   [ip-addresses]="ipam/ip-addresses/"
@@ -1572,7 +1573,7 @@ main() {
         fi
       fi
       ;;
-    contact*)
+    con|contact|contacts)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
         JSON_COLUMNS+=(group.name email phone)
@@ -1587,6 +1588,18 @@ main() {
         )
       else
         command=(netbox_list_contacts)
+      fi
+      ;;
+    contact-grp*|con-grp*|congrp*)
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects contact_group
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_contact_groups)
       fi
       ;;
     d|dev|devices)
