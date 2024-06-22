@@ -27,6 +27,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [prefixes]="ipam/prefixes/"
   [racks]="dcim/racks/"
   [regions]="dcim/regions/"
+  [services]="ipam/services/"
   [sites]="dcim/sites/"
   [tenants]="tenancy/tenants/"
   [virtual-machines]="virtualization/virtual-machines/"
@@ -70,6 +71,7 @@ usage() {
   echo "  prefixes      [FILTERS]   List prefixes"
   echo "  racks         [FILTERS]   List racks"
   echo "  regions       [FILTERS]   List regions"
+  echo "  services      [FILTERS]   List services"
   echo "  sites         [FILTERS]   List sites"
   echo "  tenants       [FILTERS]   List tenants"
   echo "  vlans         [FILTERS]   List VLANs"
@@ -1247,10 +1249,10 @@ pretty_output() {
               # empty array
               $NA
             else
-              if all(.[]; type == "string")
+              # array of strings/integers
+              if all(.[]; (type == "string" or type == "number"))
               then
-                # array of strings
-                (. | join(", "))
+                map(tostring) | join(", ")
               elif all(.[]; type == "object" and has("name"))
               then
                 # array with multiple objects that all have names
@@ -1701,6 +1703,29 @@ main() {
         )
       else
         command=(netbox_list_regions)
+      fi
+      ;;
+    svc|service*)
+      if [[ -n "$GRAPHQL" ]]
+      then
+        if [[ -z "$CUSTOM_COLUMNS" ]]
+        then
+          JSON_COLUMNS+=(ports protocol)
+          COLUMN_NAMES+=(Ports Protocol)
+        fi
+
+        command=(
+          netbox_graphql_objects service
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        if [[ -z "$CUSTOM_COLUMNS" ]]
+        then
+          JSON_COLUMNS+=(ports protocol.value)
+          COLUMN_NAMES+=(Ports Protocol)
+        fi
+        command=(netbox_list_services)
       fi
       ;;
     t|ten*)
