@@ -39,6 +39,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [rack-roles]="dcim/rack-roles/"
   [rack-reservations]="dcim/rack-reservations/"
   [regions]="dcim/regions/"
+  [rirs]="ipam/rirs/"
   [services]="ipam/services/"
   [sites]="dcim/sites/"
   [tenants]="tenancy/tenants/"
@@ -99,6 +100,7 @@ usage() {
   echo "  rack-reservations   [FILTERS]   List rack reservations"
   echo "  rack-roles          [FILTERS]   List rack roles"
   echo "  regions             [FILTERS]   List regions"
+  echo "  rirs                [FILTERS]   List RIRs"
   echo "  services            [FILTERS]   List services"
   echo "  sites               [FILTERS]   List sites"
   echo "  tags                [FILTERS]   List tags"
@@ -1968,6 +1970,27 @@ main() {
         )
       else
         command=(netbox_list_rack_roles)
+      fi
+      ;;
+    rir*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(is_private)
+        COLUMN_NAMES+=(Private)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+      command=(
+        netbox_graphql_objects rir
+        "${JSON_COLUMNS[@]}"
+        "${JSON_COLUMNS_AFTER[@]}"
+      )
+      else
+        # TODO graphql support
+        JSON_COLUMNS+=(aggregate_count)
+        COLUMN_NAMES+=(Aggregates)
+        command=(netbox_list_rirs)
       fi
       ;;
     re|region*)
