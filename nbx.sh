@@ -1092,7 +1092,7 @@ check_filters() {
 resolve_filters() {
   local target_obj="${TARGET_OBJECT}"
 
-  local filter key val obj matches search_prop
+  local filter key val obj obj_repl matches search_prop
   local -A data
   local rc=0
 
@@ -1106,6 +1106,7 @@ resolve_filters() {
         then
           search_prop="name" # look for matches on name by default
           obj=${key%_id}
+          obj_repl=""
 
           # some objects don't have a name field
           case "$obj" in
@@ -1122,21 +1123,26 @@ resolve_filters() {
               # If we target devices, the "role" refers to a device_role
               case "$target_obj" in
                 device|devices)
-                  echo_debug "Rewrote filter 'role' to 'device_role'"
-                  obj="device_role"
+                  obj_repl="device_role"
                   ;;
               esac
               ;;
-            type)
-              # For clusters, the "type" refers to a cluster_type
+            type|group)
+              # For clusters, the "type" refers to a cluster_type and the
+              # "group" to a cluster_group
               case "$target_obj" in
                 cluster*)
-                  echo_debug "Rewrote filter '${target_obj}' to 'cluster_type'"
-                  obj="cluster_type"
+                  obj_repl="cluster_${obj}"
                   ;;
               esac
               ;;
           esac
+
+          if [[ -n "$obj_repl" ]]
+          then
+            echo_debug "Rewrote filter '${obj}' to '${obj_repl}'"
+            obj="$obj_repl"
+          fi
 
           if [[ -z "${data[$obj]}" ]]
           then
