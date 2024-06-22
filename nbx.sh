@@ -48,6 +48,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [virtual-chassis]="dcim/virtual-chassis/"
   [virtual-machines]="virtualization/virtual-machines/"
   [vlans]="ipam/vlans/"
+  [vlan-groups]="ipam/vlan-groups/"
   [vrfs]="ipam/vrfs/"
   [wireless-lans]="wireless/wireless-lans/"
 )
@@ -108,6 +109,7 @@ usage() {
   echo "  tenant-groups       [FILTERS]   List tenants groups"
   echo "  virtual-chassis     [FILTERS]   List virtual chassis"
   echo "  vlans               [FILTERS]   List VLANs"
+  echo "  vlan-groups         [FILTERS]   List VLAN groups"
   echo "  vm                  [FILTERS]   List virtual machines"
   echo "  vrf                 [FILTERS]   List VRFs"
   echo "  wifi                [FILTERS]   List wireless LANs"
@@ -2099,7 +2101,7 @@ main() {
         command=(netbox_list_tags)
       fi
       ;;
-    vlan*)
+    vlan|vlans)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
         JSON_COLUMNS+=(role.name site.name tenant.name)
@@ -2115,6 +2117,26 @@ main() {
         )
       else
         command=(netbox_list_vlans)
+      fi
+      ;;
+    vlg|vlan-g*|vlan*g*)
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects vlan_group
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        # TODO GraphQL support
+        if [[ -z "$CUSTOM_COLUMNS" ]]
+        then
+          JSON_COLUMNS+=(scope_type scope.name vlan_count utilization)
+          COLUMN_NAMES+=("Scope Type" "Scope" "VLAN Count" Utilization)
+        fi
+
+        command=(netbox_list_vlan_groups)
       fi
       ;;
     vc|virtual-chassis|virt-cha*|virtch*)
