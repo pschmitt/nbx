@@ -21,6 +21,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [circuits]="circuits/circuits/"
   [clusters]="virtualization/clusters/"
   [contacts]="tenancy/contacts/"
+  [contact-assignments]="tenancy/contact-assignments/"
   [contact-groups]="tenancy/contact-groups/"
   [contact-roles]="tenancy/contact-roles/"
   [devices]="dcim/devices/"
@@ -70,32 +71,33 @@ usage() {
   echo
   echo "LIST ACTIONS"
   echo
-  echo "  cables            [FILTERS]   List cables"
-  echo "  circuits          [FILTERS]   List circuits"
-  echo "  clusters          [FILTERS]   List clusters"
-  echo "  contacts          [FILTERS]   List contacts"
-  echo "  contact-groups    [FILTERS]   List contact groups"
-  echo "  contact-roles     [FILTERS]   List contact roles"
-  echo "  devices           [FILTERS]   List devices"
-  echo "  device-roles      [FILTERS]   List device roles"
-  echo "  ip-addresses      [FILTERS]   List IP addresses"
-  echo "  locations         [FILTERS]   List locations"
-  echo "  manufacturers     [FILTERS]   List manufacturers"
-  echo "  prefixes          [FILTERS]   List prefixes"
-  echo "  providers         [FILTERS]   List providers"
-  echo "  racks             [FILTERS]   List racks"
-  echo "  rack-reservations [FILTERS]   List rack reservations"
-  echo "  rack-roles        [FILTERS]   List rack roles"
-  echo "  regions           [FILTERS]   List regions"
-  echo "  services          [FILTERS]   List services"
-  echo "  sites             [FILTERS]   List sites"
-  echo "  tags              [FILTERS]   List tags"
-  echo "  tenants           [FILTERS]   List tenants"
-  echo "  tenant-groups     [FILTERS]   List tenants groups"
-  echo "  vlans             [FILTERS]   List VLANs"
-  echo "  vm                [FILTERS]   List virtual machines"
-  echo "  vrf               [FILTERS]   List VRFs"
-  echo "  wifi              [FILTERS]   List wireless LANs"
+  echo "  cables              [FILTERS]   List cables"
+  echo "  circuits            [FILTERS]   List circuits"
+  echo "  clusters            [FILTERS]   List clusters"
+  echo "  contacts            [FILTERS]   List contacts"
+  echo "  contact-assignments [FILTERS] List contact assignments"
+  echo "  contact-groups      [FILTERS]   List contact groups"
+  echo "  contact-roles       [FILTERS]   List contact roles"
+  echo "  devices             [FILTERS]   List devices"
+  echo "  device-roles        [FILTERS]   List device roles"
+  echo "  ip-addresses        [FILTERS]   List IP addresses"
+  echo "  locations           [FILTERS]   List locations"
+  echo "  manufacturers       [FILTERS]   List manufacturers"
+  echo "  prefixes            [FILTERS]   List prefixes"
+  echo "  providers           [FILTERS]   List providers"
+  echo "  racks               [FILTERS]   List racks"
+  echo "  rack-reservations   [FILTERS]   List rack reservations"
+  echo "  rack-roles          [FILTERS]   List rack roles"
+  echo "  regions             [FILTERS]   List regions"
+  echo "  services            [FILTERS]   List services"
+  echo "  sites               [FILTERS]   List sites"
+  echo "  tags                [FILTERS]   List tags"
+  echo "  tenants             [FILTERS]   List tenants"
+  echo "  tenant-groups       [FILTERS]   List tenants groups"
+  echo "  vlans               [FILTERS]   List VLANs"
+  echo "  vm                  [FILTERS]   List virtual machines"
+  echo "  vrf                 [FILTERS]   List VRFs"
+  echo "  wifi                [FILTERS]   List wireless LANs"
   echo
   echo
   echo "META ACTIONS"
@@ -202,18 +204,38 @@ arr_join() {
   echo "$*"
 }
 
+# usage: arr_remove removeme removeme2 -- "${array[@]}"
 arr_remove() {
-  local elem="$1"
+  local -a remove
+  local i
+
+  for i in "$@"
+  do
+    case "$1" in
+      --)
+        shift
+        break
+        ;;
+      *)
+        remove+=("$1")
+        shift
+        ;;
+    esac
+  done
+
   shift
   local arr=("$@")
 
-  local i
+  local j
   for i in "${arr[@]}"
   do
-    if [[ "$i" == "$elem" ]]
-    then
-      continue
-    fi
+    for j in "${remove[@]}"
+    do
+      if [[ "$i" == "$j" ]]
+      then
+        continue 2
+      fi
+    done
 
     echo "$i"
   done
@@ -1510,8 +1532,8 @@ main() {
         # cables have no name field
         # mapfile -t JSON_COLUMNS < <(arr_replace name label "${JSON_COLUMNS[@]}")
         # mapfile -t COLUMN_NAMES < <(arr_replace Name Label "${COLUMN_NAMES[@]}")
-        mapfile -t JSON_COLUMNS < <(arr_remove name "${JSON_COLUMNS[@]}")
-        mapfile -t COLUMN_NAMES < <(arr_remove Name "${COLUMN_NAMES[@]}")
+        mapfile -t JSON_COLUMNS < <(arr_remove name -- "${JSON_COLUMNS[@]}")
+        mapfile -t COLUMN_NAMES < <(arr_remove Name -- "${COLUMN_NAMES[@]}")
         # JSON_COLUMNS+=(a_terminations.name b_terminations.name status tenant.name)
         # COLUMN_NAMES+=("Termination A" "Termination B" Status Tenant)
         JSON_COLUMNS+=(status tenant.name type)
@@ -1533,8 +1555,8 @@ main() {
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
         # circuits have no name field
-        mapfile -t JSON_COLUMNS < <(arr_remove name "${JSON_COLUMNS[@]}")
-        mapfile -t COLUMN_NAMES < <(arr_remove Name "${COLUMN_NAMES[@]}")
+        mapfile -t JSON_COLUMNS < <(arr_remove name -- "${JSON_COLUMNS[@]}")
+        mapfile -t COLUMN_NAMES < <(arr_remove Name -- "${COLUMN_NAMES[@]}")
 
         JSON_COLUMNS+=(provider.name type.name status.value termination_a.display termination_z.display)
         COLUMN_NAMES+=(Provider Type Status "Side A" "Side Z")
@@ -1591,6 +1613,34 @@ main() {
         )
       else
         command=(netbox_list_contacts)
+      fi
+      ;;
+    contact-ass*|conass*|con-ass*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        # contact-assignments has no name field
+        mapfile -t JSON_COLUMNS < <(arr_remove name description -- "${JSON_COLUMNS[@]}")
+        mapfile -t COLUMN_NAMES < <(arr_remove Name Description -- "${COLUMN_NAMES[@]}")
+
+        JSON_COLUMNS+=(contact.name role.name)
+        COLUMN_NAMES+=(Contact Role)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects contact_assignment
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        if [[ -z "$CUSTOM_COLUMNS" ]]
+        then
+          JSON_COLUMNS+=(object.name)
+          COLUMN_NAMES+=(Object)
+        fi
+
+        command=(netbox_list_contact_assignments)
       fi
       ;;
     contact-grp*|con-grp*|congrp*)
@@ -1781,8 +1831,8 @@ main() {
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
         # rack-reservations have no name field
-        mapfile -t JSON_COLUMNS < <(arr_remove name "${JSON_COLUMNS[@]}")
-        mapfile -t COLUMN_NAMES < <(arr_remove Name "${COLUMN_NAMES[@]}")
+        mapfile -t JSON_COLUMNS < <(arr_remove name -- "${JSON_COLUMNS[@]}")
+        mapfile -t COLUMN_NAMES < <(arr_remove Name -- "${COLUMN_NAMES[@]}")
 
         JSON_COLUMNS+=(rack.name units)
         COLUMN_NAMES+=(Rack Units)
