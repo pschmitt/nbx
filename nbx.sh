@@ -18,6 +18,7 @@ WITH_ID_COL="${WITH_ID_COL:-}"
 
 declare -A NETBOX_API_ENDPOINTS=(
   [clusters]="virtualization/clusters/"
+  [contacts]="tenancy/contacts/"
   [devices]="dcim/devices/"
   [device-roles]="dcim/device-roles/"
   [ip-addresses]="ipam/ip-addresses/"
@@ -58,6 +59,7 @@ usage() {
   echo "LIST ACTIONS"
   echo
   echo "  clusters      [FILTERS]   List clusters"
+  echo "  contacts      [FILTERS]   List contacts"
   echo "  devices       [FILTERS]   List devices"
   echo "  device-roles  [FILTERS]   List device roles"
   echo "  ip-addresses  [FILTERS]   List IP addresses"
@@ -1499,6 +1501,23 @@ main() {
           JSON_COLUMNS+=(device_count)
           COLUMN_NAMES+=(Devices)
         fi
+      fi
+      ;;
+    contact*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(group.name email phone)
+        COLUMN_NAMES+=(Group Email Phone)
+      fi
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects contact
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_contacts)
       fi
       ;;
     d|dev|devices)
