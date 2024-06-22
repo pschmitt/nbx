@@ -42,6 +42,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [tenants]="tenancy/tenants/"
   [tenant-groups]="tenancy/tenant-groups/"
   [tags]="extras/tags/"
+  [virtual-chassis]="dcim/virtual-chassis/"
   [virtual-machines]="virtualization/virtual-machines/"
   [vlans]="ipam/vlans/"
   [vrfs]="ipam/vrfs/"
@@ -99,6 +100,7 @@ usage() {
   echo "  tags                [FILTERS]   List tags"
   echo "  tenants             [FILTERS]   List tenants"
   echo "  tenant-groups       [FILTERS]   List tenants groups"
+  echo "  virtual-chassis     [FILTERS]   List virtual chassis"
   echo "  vlans               [FILTERS]   List VLANs"
   echo "  vm                  [FILTERS]   List virtual machines"
   echo "  vrf                 [FILTERS]   List VRFs"
@@ -783,6 +785,9 @@ netbox_graphql_list_columns() {
     ip-addr*|ip_addr*|IPAddr*)
       object_type="IPAddress"
       ;;
+    virtual-chassis|virtual_chassis|VirtualChassis|vc)
+      object_type="VirtualChassis"
+      ;;
     *)
       object_type="${object_type%%s}"
       ;;
@@ -835,6 +840,9 @@ netbox_graphql_objects() {
     ip-addr*|ip_addr*)
       object_type="ip_address"
       ;;
+    virtual-chassis|virtual_chassis)
+      object_type="virtual_chassis"
+      ;;
     *)
       object_type="${object_type%%s}"
       ;;
@@ -847,11 +855,13 @@ netbox_graphql_objects() {
 
   local graphql_func="${object_type}_list"
 
+  local key val
+
   # Only introspect if necessary (at least one filter provided)
   if [[ "$*" == *=* ]]
   then
     local -A graphql_args
-    local line key val
+    local line
 
     while read -r line
     do
@@ -2038,6 +2048,24 @@ main() {
         )
       else
         command=(netbox_list_vlans)
+      fi
+      ;;
+    vc|virtual-chassis|virt-cha*|virtch*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(master.name)
+        COLUMN_NAMES+=(Master)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects virtual_chassis
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_virtual_chassis)
       fi
       ;;
     vm|virtual-machine*)
