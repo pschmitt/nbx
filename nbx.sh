@@ -30,6 +30,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [ip-addresses]="ipam/ip-addresses/"
   [locations]="dcim/locations/"
   [manufacturers]="dcim/manufacturers/"
+  [platforms]="dcim/platforms/"
   [prefixes]="ipam/prefixes/"
   [providers]="circuits/providers/"
   [racks]="dcim/racks/"
@@ -85,6 +86,7 @@ usage() {
   echo "  ip-addresses        [FILTERS]   List IP addresses"
   echo "  locations           [FILTERS]   List locations"
   echo "  manufacturers       [FILTERS]   List manufacturers"
+  echo "  platforms           [FILTERS]   List platforms"
   echo "  prefixes            [FILTERS]   List prefixes"
   echo "  providers           [FILTERS]   List providers"
   echo "  racks               [FILTERS]   List racks"
@@ -1817,6 +1819,24 @@ main() {
         )
       else
         command=(netbox_list_manufacturers)
+      fi
+      ;;
+    plat*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(manufacturer.name)
+        COLUMN_NAMES+=(Manufacturer)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects platform
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_platforms)
       fi
       ;;
     prov*)
