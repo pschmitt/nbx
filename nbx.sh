@@ -511,12 +511,25 @@ to_graphql() {
     # Split fields and map them to their parents
     for field in "${fields[@]}"
     do
-      IFS='.' read -r key rest <<< "$field"
-      if [[ -n "$rest" ]]
+      if [[ "$field" == *'='* ]]
       then
-        map[$key]+="${rest} "
+        IFS='=' read -r key value <<< "$field"
+        if [[ -n "${map[$key]}" ]]
+        then
+          # If the key already exists, append the new value to the list
+          map[$key]+=", \"$value\""
+        else
+          # If the key does not exist, create a new entry
+          map[$key]="\"$value\""
+        fi
       else
-        nested_output+="$key, "
+        IFS='.' read -r key rest <<< "$field"
+        if [[ -n "$rest" ]]
+        then
+          map[$key]+="${rest} "
+        else
+          nested_output+="$field, "
+        fi
       fi
     done
 
@@ -525,10 +538,24 @@ to_graphql() {
     local sub_output
     for key in "${!map[@]}"
     do
-      # shellcheck disable=SC2206
-      nested_fields=(${map[$key]})
-      sub_output=$(process_fields "${nested_fields[@]}")
-      nested_output+="$key { $sub_output }, "
+      if [[ "${map[$key]}" == *"\""* ]]
+      then
+        # If the key has values, it means it's a list
+        if [[ "${map[$key]}" == *","* ]]
+        then
+          # Multiple values, output as a list
+          nested_output+="$key: [${map[$key]}], "
+        else
+          # Single value, output normally without brackets
+          nested_output+="$key: ${map[$key]}, "
+        fi
+      else
+        # Otherwise, process as nested fields
+        # shellcheck disable=SC2206
+        nested_fields=(${map[$key]})
+        sub_output=$(process_fields "${nested_fields[@]}")
+        nested_output+="$key { $sub_output }, "
+      fi
     done
 
     # Remove trailing comma and space from the current output
