@@ -1402,7 +1402,7 @@ main() {
         ;;
       -s|--sort*)
         SORT_BY="$2"
-        # CUSTOM_SORT=1
+        CUSTOM_SORT=1
         shift 2
         ;;
       --)
@@ -1514,6 +1514,11 @@ main() {
           Rack
           "Primary IPv4"
         )
+      fi
+
+      if [[ -z "$CUSTOM_SORT" ]]
+      then
+        SORT_BY="role"
       fi
 
       if [[ -n "$GRAPHQL" ]]
