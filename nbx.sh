@@ -26,6 +26,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [contact-roles]="tenancy/contact-roles/"
   [devices]="dcim/devices/"
   [device-roles]="dcim/device-roles/"
+  [device-types]="dcim/device-types/"
   [ip-addresses]="ipam/ip-addresses/"
   [locations]="dcim/locations/"
   [manufacturers]="dcim/manufacturers/"
@@ -80,6 +81,7 @@ usage() {
   echo "  contact-roles       [FILTERS]   List contact roles"
   echo "  devices             [FILTERS]   List devices"
   echo "  device-roles        [FILTERS]   List device roles"
+  echo "  device-types        [FILTERS]   List device types"
   echo "  ip-addresses        [FILTERS]   List IP addresses"
   echo "  locations           [FILTERS]   List locations"
   echo "  manufacturers       [FILTERS]   List manufacturers"
@@ -1702,7 +1704,7 @@ main() {
         command=(netbox_list_devices)
       fi
       ;;
-    dr|device-role*)
+    dr|device-role*|dev*rol*)
       if [[ -n "$GRAPHQL" ]]
       then
         command=(
@@ -1712,6 +1714,26 @@ main() {
         )
       else
         command=(netbox_list_device_roles)
+      fi
+      ;;
+    dt|dev-type*|dev*typ*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        # device-types have no name field
+        mapfile -t JSON_COLUMNS < <(arr_replace name display "${JSON_COLUMNS[@]}")
+        JSON_COLUMNS+=(manufacturer.name model part_number u_height)
+        COLUMN_NAMES+=(Manufacturer Model "Part No" "U Height")
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects device_type
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_device_types)
       fi
       ;;
     ip|ip-*)
