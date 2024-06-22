@@ -31,6 +31,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [devices]="dcim/devices/"
   [device-roles]="dcim/device-roles/"
   [device-types]="dcim/device-types/"
+  [interfaces]="virtualization/interfaces/"
   [ip-addresses]="ipam/ip-addresses/"
   [locations]="dcim/locations/"
   [manufacturers]="dcim/manufacturers/"
@@ -117,6 +118,7 @@ usage() {
   echo "  vlan-groups         [FILTERS]   List VLAN groups"
   echo "  vlan-roles          [FILTERS]   List Prefix & VLAN roles"
   echo "  vm                  [FILTERS]   List virtual machines"
+  echo "  vm-interfaces       [FILTERS]   List vm interfaces"
   echo "  vrf                 [FILTERS]   List VRFs"
   echo "  wifi                [FILTERS]   List wireless LANs"
   echo
@@ -2234,6 +2236,24 @@ main() {
         )
       else
         command=(netbox_list_virtual_machines)
+      fi
+      ;;
+    vmi|vm-int*|vmint*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(virtual_machine.name enabled)
+        COLUMN_NAMES+=(VM Enabled)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects vm_interface
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_interfaces)
       fi
       ;;
     vrf*)
