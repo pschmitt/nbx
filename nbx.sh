@@ -30,6 +30,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [services]="ipam/services/"
   [sites]="dcim/sites/"
   [tenants]="tenancy/tenants/"
+  [tags]="extras/tags/"
   [virtual-machines]="virtualization/virtual-machines/"
   [vlans]="ipam/vlans/"
   [vrfs]="ipam/vrfs/"
@@ -73,6 +74,7 @@ usage() {
   echo "  regions       [FILTERS]   List regions"
   echo "  services      [FILTERS]   List services"
   echo "  sites         [FILTERS]   List sites"
+  echo "  tags          [FILTERS]   List tags"
   echo "  tenants       [FILTERS]   List tenants"
   echo "  vlans         [FILTERS]   List VLANs"
   echo "  vm            [FILTERS]   List virtual machines"
@@ -1746,12 +1748,31 @@ main() {
         command=(netbox_list_tenants)
       fi
       ;;
+    tag*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(color)
+        COLUMN_NAMES+=(Color)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects tag
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_tags)
+      fi
+      ;;
     vlan*)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
         JSON_COLUMNS+=(role.name site.name tenant.name)
         COLUMN_NAMES+=(Role Site Tenant)
       fi
+
       if [[ -n "$GRAPHQL" ]]
       then
         command=(
