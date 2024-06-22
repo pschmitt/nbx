@@ -29,6 +29,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [prefixes]="ipam/prefixes/"
   [providers]="circuits/providers/"
   [racks]="dcim/racks/"
+  [rack-roles]="dcim/rack-roles/"
   [regions]="dcim/regions/"
   [services]="ipam/services/"
   [sites]="dcim/sites/"
@@ -77,6 +78,7 @@ usage() {
   echo "  prefixes      [FILTERS]   List prefixes"
   echo "  providers     [FILTERS]   List providers"
   echo "  racks         [FILTERS]   List racks"
+  echo "  rack-roles    [FILTERS]   List rack roles"
   echo "  regions       [FILTERS]   List regions"
   echo "  services      [FILTERS]   List services"
   echo "  sites         [FILTERS]   List sites"
@@ -1725,7 +1727,7 @@ main() {
         command=(netbox_list_providers)
       fi
       ;;
-    r|rack*)
+    r|rack|racks*)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
         JSON_COLUMNS+=(site.name location.name)
@@ -1741,6 +1743,18 @@ main() {
         )
       else
         command=(netbox_list_racks)
+      fi
+      ;;
+    rackr|rack-role*)
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects rack_role
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_rack_roles)
       fi
       ;;
     re|region*)
