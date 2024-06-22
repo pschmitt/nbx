@@ -65,6 +65,7 @@ usage() {
   echo "  ip-addresses  [FILTERS]   List IP addresses"
   echo "  locations     [FILTERS]   List locations"
   echo "  manufacturers [FILTERS]   List manufacturers"
+  echo "  prefixes      [FILTERS]   List prefixes"
   echo "  racks         [FILTERS]   List racks"
   echo "  regions       [FILTERS]   List regions"
   echo "  sites         [FILTERS]   List sites"
