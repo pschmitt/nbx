@@ -21,6 +21,8 @@ declare -A NETBOX_API_ENDPOINTS=(
   [cables]="dcim/cables/"
   [circuits]="circuits/circuits/"
   [clusters]="virtualization/clusters/"
+  [cluster-types]="virtualization/cluster-types/"
+  [cluster-groups]="virtualization/cluster-groups/"
   [config-contexts]="extras/config-contexts/"
   [contacts]="tenancy/contacts/"
   [contact-assignments]="tenancy/contact-assignments/"
@@ -84,6 +86,8 @@ usage() {
   echo "  cables              [FILTERS]   List cables"
   echo "  circuits            [FILTERS]   List circuits"
   echo "  clusters            [FILTERS]   List clusters"
+  echo "  cluster-groups      [FILTERS]   List cluster groups"
+  echo "  cluster-types       [FILTERS]   List cluster types"
   echo "  config-contexts     [FILTERS]   List config contexts"
   echo "  contacts            [FILTERS]   List contacts"
   echo "  contact-assignments [FILTERS]   List contact assignments"
@@ -1653,6 +1657,44 @@ main() {
           JSON_COLUMNS+=(device_count)
           COLUMN_NAMES+=(Devices)
         fi
+      fi
+      ;;
+    clg|clgrp*|clgrp*|cl-g*)
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects cluster_group
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        # TODO Add support for graphql
+        if [[ -z "$CUSTOM_COLUMNS" ]]
+        then
+          JSON_COLUMNS+=(cluster_count)
+          COLUMN_NAMES+=("Clusters")
+        fi
+
+        command=(netbox_list_cluster_groups)
+      fi
+      ;;
+    clt|cltype*|cltype*|cl-t*)
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects cluster_type
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        # TODO Add support for graphql
+        if [[ -z "$CUSTOM_COLUMNS" ]]
+        then
+          JSON_COLUMNS+=(cluster_count)
+          COLUMN_NAMES+=("Clusters")
+        fi
+
+        command=(netbox_list_cluster_types)
       fi
       ;;
     config-ctx*|confctx*|conf-ctx*)
