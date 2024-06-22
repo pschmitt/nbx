@@ -20,6 +20,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [cables]="dcim/cables/"
   [circuits]="circuits/circuits/"
   [clusters]="virtualization/clusters/"
+  [config-contexts]="extras/config-contexts/"
   [contacts]="tenancy/contacts/"
   [contact-assignments]="tenancy/contact-assignments/"
   [contact-groups]="tenancy/contact-groups/"
@@ -78,6 +79,7 @@ usage() {
   echo "  cables              [FILTERS]   List cables"
   echo "  circuits            [FILTERS]   List circuits"
   echo "  clusters            [FILTERS]   List clusters"
+  echo "  config-contexts     [FILTERS]   List config contexts"
   echo "  contacts            [FILTERS]   List contacts"
   echo "  contact-assignments [FILTERS]   List contact assignments"
   echo "  contact-groups      [FILTERS]   List contact groups"
@@ -1623,6 +1625,24 @@ main() {
         fi
       fi
       ;;
+    config-ctx*|confctx*|conf-ctx*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(weight is_active data_synced)
+        COLUMN_NAMES+=(Weight Active Synced)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects config_context
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_config_contexts)
+      fi
+      ;;
     con|contact|contacts)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
@@ -2208,6 +2228,14 @@ main() {
       jq -er '.' <<< "$JSON_DATA"
       ;;
     pretty)
+      case "$JSON_DATA" in
+        "[]"|"{}"|"null")
+          echo_warning "No data to display (empty result)"
+          echo_debug "Raw data: $JSON_DATA"
+          return 0
+          ;;
+      esac
+
       pretty_output <<< "$JSON_DATA"
       ;;
   esac
