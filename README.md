@@ -144,7 +144,7 @@ nbx devices
 To assign devices matching certain criteria to a specific cluster:
 
 ```bash
-nbx assign-to-cluster CLUSTER_NAME "role=server" "site=NYC"
+nbx assign-to-cluster CLUSTER_NAME "role=server" "site=nyc"
 ```
 
 ### GraphQL Query
