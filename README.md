@@ -81,33 +81,34 @@ nbx [options] ACTION [ARGS]
 
 ### List Actions
 
-| Action                       | Description            |
-| ---------------------------- | ---------------------- |
-| `aggregates [FILTERS]`       | List aggregates.       |
-| `cables [FILTERS]`           | List cables.           |
-| `circuits [FILTERS]`         | List circuits.         |
-| `clusters [FILTERS]`         | List clusters.         |
-| `config-contexts [FILTERS]`  | List config contexts.  |
-| `contacts [FILTERS]`         | List contacts.         |
-| `devices [FILTERS]`          | List devices.          |
-| `interfaces [FILTERS]`       | List interfaces.       |
-| `ip-addresses [FILTERS]`     | List IP addresses.     |
-| `locations [FILTERS]`        | List locations.        |
-| `manufacturers [FILTERS]`    | List manufacturers.    |
-| `platforms [FILTERS]`        | List platforms.        |
-| `prefixes [FILTERS]`         | List prefixes.         |
-| `providers [FILTERS]`        | List providers.        |
-| `racks [FILTERS]`            | List racks.            |
-| `regions [FILTERS]`          | List regions.          |
-| `services [FILTERS]`         | List services.         |
-| `sites [FILTERS]`            | List sites.            |
-| `tags [FILTERS]`             | List tags.             |
-| `tenants [FILTERS]`          | List tenants.          |
-| `virtual-chassis [FILTERS]`  | List virtual chassis.  |
-| `virtual-machines [FILTERS]` | List virtual machines. |
-| `vlans [FILTERS]`            | List VLANs.            |
-| `vrfs [FILTERS]`             | List VRFs.             |
-| `wireless-lans [FILTERS]`    | List wireless LANs.    |
+| Action                       | Description           |
+| ---------------------------- | --------------------- |
+| `aggregates [FILTERS]`       | List aggregates       |
+| `cables [FILTERS]`           | List cables           |
+| `circuits [FILTERS]`         | List circuits         |
+| `clusters [FILTERS]`         | List clusters         |
+| `config-contexts [FILTERS]`  | List config contexts  |
+| `contacts [FILTERS]`         | List contacts         |
+| `devices [FILTERS]`          | List devices          |
+| `interfaces [FILTERS]`       | List interfaces       |
+| `inventory-items [FILTERS]`  | List inventory items  |
+| `ip-addresses [FILTERS]`     | List IP addresses     |
+| `locations [FILTERS]`        | List locations        |
+| `manufacturers [FILTERS]`    | List manufacturers    |
+| `platforms [FILTERS]`        | List platforms        |
+| `prefixes [FILTERS]`         | List prefixes         |
+| `providers [FILTERS]`        | List providers        |
+| `racks [FILTERS]`            | List racks            |
+| `regions [FILTERS]`          | List regions          |
+| `services [FILTERS]`         | List services         |
+| `sites [FILTERS]`            | List sites            |
+| `tags [FILTERS]`             | List tags             |
+| `tenants [FILTERS]`          | List tenants          |
+| `virtual-chassis [FILTERS]`  | List virtual chassis  |
+| `virtual-machines [FILTERS]` | List virtual machines |
+| `vlans [FILTERS]`            | List VLANs            |
+| `vrfs [FILTERS]`             | List VRFs             |
+| `wireless-lans [FILTERS]`    | List wireless LANs    |
 
 ### Meta Actions
 

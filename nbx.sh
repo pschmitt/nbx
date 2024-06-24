@@ -39,6 +39,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [device-roles]="dcim/device-roles/"
   [device-types]="dcim/device-types/"
   [interfaces]="dcim/interfaces/"
+  [inventory-items]="dcim/inventory-items/"
   [ip-addresses]="ipam/ip-addresses/"
   [locations]="dcim/locations/"
   [manufacturers]="dcim/manufacturers/"
@@ -108,6 +109,7 @@ usage() {
   echo "  device-roles        [FILTERS]   List device roles"
   echo "  device-types        [FILTERS]   List device types"
   echo "  interfaces          [FILTERS]   List interfaces"
+  echo "  inventory-items     [FILTERS]   List inventory items"
   echo "  ip-addresses        [FILTERS]   List IP addresses"
   echo "  locations           [FILTERS]   List locations"
   echo "  manufacturers       [FILTERS]   List manufacturers"
@@ -1969,6 +1971,24 @@ main() {
         )
       else
         command=(netbox_list_prefixes)
+      fi
+      ;;
+    inv|inventory*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(device.name label role.name manufacturer.name serial asset_tag)
+        COLUMN_NAMES+=(Device Label Role Manufacturer Serial Asset)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects inventory_item
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_inventory_items)
       fi
       ;;
     l|loc*)
