@@ -19,6 +19,7 @@ and [GraphQL](https://demo.netbox.dev/static/docs/graphql-api/overview/) APIs.
   - [List Devices](#list-devices)
   - [Assign Devices to a Cluster](#assign-devices-to-a-cluster)
   - [GraphQL Query](#graphql-query)
+  - [More Examples](#more-examples)
 - [📜 License](#license)
 
 ## 📦 Installation
