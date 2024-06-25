@@ -1,6 +1,7 @@
 #!/usr/bin/env zsh
 
 CLUSTER_TYPE="$1"
+ROLES=(blade server storage management-server gpu-node)
 
 if [[ -z "$CLUSTER_TYPE" ]]
 then
@@ -12,7 +13,7 @@ for CLUSTER in "${(@f)$(nbx cluster type="$CLUSTER_TYPE" -j | jq -er '.[].name')
 do
   echo_info "Processing cluster: $CLUSTER"
 
-  for role in server storage management-server
+  for ROLE in "${ROLES[@]}"
   do
     echo_info "Cluster: $CLUSTER - Role: $ROLE"
 
