@@ -2440,6 +2440,15 @@ main() {
   for col_val in "${JSON_COLUMNS_REMOVE[@]}"
   do
     col_index=$(arr_index_of "$col_val" "${JSON_COLUMNS[@]}")
+
+    # Look for the column in the list of column names if not found in the list
+    # of json paths
+    if [[ -z "$col_index" ]]
+    then
+      local col_names_lc=( "${COLUMN_NAMES[@],,}" )
+      col_index=$(arr_index_of "$col_val" "${col_names_lc[@]}")
+    fi
+
     if [[ -z "$col_index" ]]
     then
       echo_warning "Column '$col' not found in the list of columns, skipping"
