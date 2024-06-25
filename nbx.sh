@@ -1863,6 +1863,8 @@ main() {
       fi
       ;;
     dr|device-role*|dev*rol*)
+      JSON_COLUMNS+=(vm_role)
+      COLUMN_NAMES+=("VM Role")
       if [[ -n "$GRAPHQL" ]]
       then
         command=(
@@ -1871,6 +1873,8 @@ main() {
           "${JSON_COLUMNS_AFTER[@]}"
         )
       else
+        JSON_COLUMNS+=(device_count virtualmachine_count)
+        COLUMN_NAMES+=("Devices" "VMs")
         command=(netbox_list_device_roles)
       fi
       ;;
