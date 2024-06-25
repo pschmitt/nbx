@@ -2454,6 +2454,7 @@ main() {
       echo_warning "Column '$col' not found in the list of columns, skipping"
       continue
     fi
+
     mapfile -t JSON_COLUMNS < <(arr_remove_at "$col_index" "${JSON_COLUMNS[@]}")
     mapfile -t COLUMN_NAMES < <(arr_remove_at "$col_index" "${COLUMN_NAMES[@]}")
   done
