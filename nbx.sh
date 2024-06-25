@@ -1161,7 +1161,7 @@ resolve_filters() {
             data[$obj]="$(netbox_graphql_objects "$obj" id "$search_prop")"
           fi
 
-          mapfile -t matches < <(jq -er \
+          mapfile -t matches < <(jq -erc \
             --arg val "$val" \
             --arg search_prop "$search_prop" '
               .[] | select(
@@ -1170,7 +1170,7 @@ resolve_filters() {
                 (.[$search_prop] != null)
                 and
                 (.[$search_prop] | test("^" + $val + "$"; "i"))
-              ) | .id
+              )
           ' <<< "${data[$obj]}")
 
           case "${#matches[@]}" in
@@ -1184,10 +1184,10 @@ resolve_filters() {
               continue
               ;;
             1)
-              val="${matches[0]}"
+              val=$(jq -er '.id' <<< "${matches[0]}")
               ;;
             *)
-              echo_error "Ambiguous $obj name '$val': ${matches[*]}"
+              echo_error "Ambiguous $obj name '$val': $(jq -ser '[.[].name] | join(" ")' <<< "${matches[@]}")"
               rc=1
               continue
               ;;
