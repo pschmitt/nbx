@@ -1704,7 +1704,7 @@ main() {
         fi
       fi
       ;;
-    clg|clgrp*|clgrp*|cl-g*)
+    clg|clgrp*|cl-g*)
       if [[ -n "$GRAPHQL" ]]
       then
         command=(
@@ -1723,7 +1723,7 @@ main() {
         command=(netbox_list_cluster_groups)
       fi
       ;;
-    clt|cltype*|cltype*|cl-t*)
+    clt|cltype*|cl-t*)
       if [[ -n "$GRAPHQL" ]]
       then
         command=(
