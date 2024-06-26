@@ -1530,6 +1530,8 @@ main() {
           fi
         done
 
+        unset after remove
+
         shift 2
         ;;
       -s|--sort*)
