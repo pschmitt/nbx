@@ -2072,8 +2072,19 @@ main() {
       fi
       ;;
     m|manufacturer*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(devicetype_count inventoryitem_count)
+        COLUMN_NAMES+=("Device Type Count" "Inventory Item Count")
+      fi
+
       if [[ -n "$GRAPHQL" ]]
       then
+        # DIRTYFIX For REST it's devicetype and inventoryitem, for GraphQL
+        # it's device_type and inventory_item
+        mapfile -t JSON_COLUMNS < <(arr_replace_all "devicetype" "device_type" "${JSON_COLUMNS[@]}")
+        mapfile -t JSON_COLUMNS < <(arr_replace_all "inventoryitem" "inventory_item" "${JSON_COLUMNS[@]}")
+
         command=(
           netbox_graphql_objects manufacturer
           "${JSON_COLUMNS[@]}"
