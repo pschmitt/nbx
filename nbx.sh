@@ -2156,6 +2156,12 @@ main() {
       fi
       ;;
     rackro*|rack-ro*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(rack_count)
+        COLUMN_NAMES+=("Rack Count")
+      fi
+
       if [[ -n "$GRAPHQL" ]]
       then
         command=(
