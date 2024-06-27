@@ -624,7 +624,7 @@ netbox_graphql() {
 
     # Transform nested fields to GraphQL format
     local fields_ql
-    fields_ql=$(to_graphql "${fields[@]}")
+    fields_ql=$(to_graphql_fields "${fields[@]}")
 
     echo_debug_no_trunc "GraphQL fields: $fields_ql"
 
@@ -671,11 +671,12 @@ netbox_graphql() {
   return "$rc"
 }
 
-to_graphql() {
+to_graphql_fields() {
   local fields=("$@")
 
   # Recursive function to process nested fields
   process_fields() {
+    local field
     local fields=("$@")
     local -A map
     local key
