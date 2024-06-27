@@ -1947,12 +1947,15 @@ main() {
       then
         # device-types have no name field
         mapfile -t JSON_COLUMNS < <(arr_replace name display "${JSON_COLUMNS[@]}")
-        JSON_COLUMNS+=(manufacturer.name model part_number u_height)
-        COLUMN_NAMES+=(Manufacturer Model "Part No" "U Height")
+        JSON_COLUMNS+=(manufacturer.name model part_number u_height is_full_depth device_count)
+        COLUMN_NAMES+=(Manufacturer Model "Part No" "U Height" "Full Depth" "Device Count")
       fi
 
       if [[ -n "$GRAPHQL" ]]
       then
+        # DIRTYFIX For REST it's device(s), for GraphQL it's instance(s)
+        mapfile -t JSON_COLUMNS < <(arr_replace device_count instance_count "${JSON_COLUMNS[@]}")
+
         command=(
           netbox_graphql_objects device_type
           "${JSON_COLUMNS[@]}"
