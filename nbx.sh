@@ -565,7 +565,7 @@ netbox_rest_list_columns() {
 }
 
 netbox_graphql() {
-  local raw
+  local raw=''
   local jq_filter=".data | to_entries[].value"
 
   while [[ "${#@}" -gt 0 ]]
@@ -721,7 +721,7 @@ to_graphql() {
 }
 
 netbox_graphql_introspect() {
-  local output raw args
+  local output='' raw='' args=()
 
   while [[ -n "$*" ]]
   do
@@ -824,7 +824,7 @@ netbox_graphql_introspect() {
   case "$output" in
     query)
       local func="$1"
-      local arg="$2"
+      local arg="${2:-}"
 
       if [[ -z "$func" ]]
       then
@@ -957,12 +957,21 @@ netbox_graphql_objects() {
 
   local -a args filters
 
-  # shellcheck disable=SC2046
-  set -- $(TARGET_OBJECT="$object_type" resolve_filters "$@")
+  local filters_resolved
+  if ! filters_resolved=($(TARGET_OBJECT="$object_type" resolve_filters "$@"))
+  then
+    if [[ -n "$PEDANTIC" ]]
+    then
+      echo_warning "Invalid filters provided: $*"
+      return 1
+    fi
+  fi
+
+  set -- "${filters_resolved[@]}"
 
   local graphql_func="${object_type}_list"
 
-  local key val
+  local key='' val=''
 
   # Only introspect if necessary (at least one filter provided)
   if [[ "$*" == *=* ]]
@@ -978,7 +987,7 @@ netbox_graphql_objects() {
   fi
 
   local arg_type
-  local -A filter_values
+  local -A filter_values=()
   while [[ -n $* ]]
   do
     case "$1" in
@@ -986,7 +995,7 @@ netbox_graphql_objects() {
         # convert filters like rack_id=691 to GraphQL format (rack_id: "691")
         IFS="=" read -r key val <<< "$1"
 
-        arg_type="${graphql_args[$key]}"
+        arg_type="${graphql_args[$key]:-}"
         case "$arg_type" in
           int)
             # Use value as-is
@@ -996,7 +1005,7 @@ netbox_graphql_objects() {
             ;;
         esac
 
-        if [[ -n "${filter_values[$key]}" ]]
+        if [[ -v filter_values && -n "${filter_values[$key]}" ]]
         then
           # Append to existing value
           val="${filter_values[$key]}, $val"
@@ -1019,7 +1028,7 @@ netbox_graphql_objects() {
   set -- "${args[@]}"
 
   # Construct filters array
-  local -a filters
+  local -a filters=()
   for key in "${!filter_values[@]}"
   do
     if [[ "${filter_values[$key]}" == *","* ]]
@@ -1165,8 +1174,17 @@ netbox_list() {
   local endpoint="$1"
   shift
 
-  # shellcheck disable=SC2046
-  set -- $(TARGET_OBJECT="$TARGET_OBJECT" resolve_filters "$@")
+  local filters_resolved
+  if ! filters_resolved=($(TARGET_OBJECT="$endpoint" resolve_filters "$@"))
+  then
+    if [[ -n "$PEDANTIC" ]]
+    then
+      echo_warning "Invalid filters provided: $*"
+      return 1
+    fi
+  fi
+
+  set -- "${filters_resolved[@]}"
 
   local filters=("$@")
   if [[ "${#filters[@]}" -gt 0 ]]
@@ -1528,6 +1546,8 @@ main() {
   local JSON_COLUMNS_REMOVE=()
   local COLUMN_NAMES_AFTER=()
 
+  local CUSTOM_SORT=''
+
   # Below removes the equals signs from all opts
   # ie: --api-token=foo -> --api-token foo
   local a
@@ -1629,7 +1649,7 @@ main() {
         ;;
       --columns|--cols)
         # FIXME Use an associative array for COLUMNS
-        local CUSTOM_COLUMNS
+        local CUSTOM_COLUMNS=''
         local cols_custom=()
         local after
         local remove
