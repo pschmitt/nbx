@@ -37,6 +37,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [contact-groups]="tenancy/contact-groups/"
   [contact-roles]="tenancy/contact-roles/"
   [contacts]="tenancy/contacts/"
+  [custom-fields]="extras/custom-fields/"
   [device-bays]="dcim/device-bays/"
   [device-roles]="dcim/device-roles/"
   [device-types]="dcim/device-types/"
@@ -115,6 +116,7 @@ usage() {
   echo "  contact-groups        [FILTERS]   List contact groups"
   echo "  contact-roles         [FILTERS]   List contact roles"
   echo "  contacts              [FILTERS]   List contacts"
+  echo "  custom-fields         [FILTERS]   List custom fields"
   echo "  device-bays           [FILTERS]   List device bays"
   echo "  device-roles          [FILTERS]   List device roles"
   echo "  device-types          [FILTERS]   List device types"
@@ -1956,6 +1958,33 @@ main() {
         )
       else
         command=(netbox_list_contact_roles)
+      fi
+      ;;
+    cf|cust*f*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(label group_name type.value required)
+        COLUMN_NAMES+=(Label "Group" Type Required)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        mapfile -t JSON_COLUMNS < <(arr_replace_multiple \
+          type.value type \
+          -- "${JSON_COLUMNS[@]}")
+        command=(
+          netbox_graphql_objects custom_field
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        # TODO Add support for GraphQL
+        if [[ -z "$CUSTOM_COLUMNS" ]]
+        then
+          JSON_COLUMNS+=(content_types)
+          COLUMN_NAMES+=("Content Type")
+        fi
+        command=(netbox_list_custom_fields)
       fi
       ;;
     d|dev|devices)
