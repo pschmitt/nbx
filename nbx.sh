@@ -962,8 +962,10 @@ netbox_graphql_objects() {
     fields=(id name)
   fi
 
-  # sanitize fields
-  # mapfile -t fields < <(arr_replace_all "[]" "" "${fields[@]}")
+  # Replace _count fields with the actual field name
+  mapfile -t fields < <(arr_replace_all "_count" "s {id}" "${fields[@]}")
+  # DIRTYFIX Some plurals are weird
+  mapfile -t fields < <(arr_replace_all "prefixs" "prefixes" "${fields[@]}")
 
   local q="${graphql_func}"
 
@@ -972,8 +974,27 @@ netbox_graphql_objects() {
     q+="($(arr_join ', ' "${filters[@]}"))"
   fi
 
-  netbox_graphql --jq ".data[\"${graphql_func}\"]" \
-    "$q" "${fields[@]}"
+  local data
+  data=$(netbox_graphql --jq ".data[\"${graphql_func}\"]" \
+    "$q" "${fields[@]}")
+  local rc="$?"
+
+  # Add _count fields
+  data=$(<<<"$data" jq -er '
+    map(. + (
+      to_entries | map(
+        select(.value | type == "array") |
+        {
+          key: (.key | rtrimstr("s") + "_count"),
+          value: .value | length
+        }
+      ) | from_entries)
+    )
+  ')
+
+  printf '%s\n' "$data"
+
+  return "$rc"
 }
 
 netbox_curl_paginate() {
@@ -1395,11 +1416,13 @@ pretty_output() {
 main() {
   local args=()
 
+  # globals
   JSON_COLUMNS=()
-  JSON_COLUMNS_AFTER=()
-  JSON_COLUMNS_REMOVE=()
   COLUMN_NAMES=()
-  COLUMN_NAMES_AFTER=()
+
+  local JSON_COLUMNS_AFTER=()
+  local JSON_COLUMNS_REMOVE=()
+  local COLUMN_NAMES_AFTER=()
 
   while [[ -n "$*" ]]
   do
@@ -1711,6 +1734,13 @@ main() {
       fi
       ;;
     clg|clgrp*|cl-g*)
+      # TODO Add support for graphql
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(cluster_count)
+        COLUMN_NAMES+=("Clusters")
+      fi
+
       if [[ -n "$GRAPHQL" ]]
       then
         command=(
@@ -1719,13 +1749,6 @@ main() {
           "${JSON_COLUMNS_AFTER[@]}"
         )
       else
-        # TODO Add support for graphql
-        if [[ -z "$CUSTOM_COLUMNS" ]]
-        then
-          JSON_COLUMNS+=(cluster_count)
-          COLUMN_NAMES+=("Clusters")
-        fi
-
         command=(netbox_list_cluster_groups)
       fi
       ;;
@@ -2114,8 +2137,8 @@ main() {
     rir*)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
-        JSON_COLUMNS+=(is_private)
-        COLUMN_NAMES+=(Private)
+        JSON_COLUMNS+=(aggregate_count is_private)
+        COLUMN_NAMES+=(Aggregates Private)
       fi
 
       if [[ -n "$GRAPHQL" ]]
@@ -2126,9 +2149,6 @@ main() {
         "${JSON_COLUMNS_AFTER[@]}"
       )
       else
-        # TODO graphql support
-        JSON_COLUMNS+=(aggregate_count)
-        COLUMN_NAMES+=(Aggregates)
         command=(netbox_list_rirs)
       fi
       ;;
@@ -2257,7 +2277,6 @@ main() {
       fi
       ;;
     vlg|vlan-g*|vlan*g*)
-
       if [[ -n "$GRAPHQL" ]]
       then
         command=(
@@ -2277,6 +2296,12 @@ main() {
       fi
       ;;
     vlr|vlan-r*|vlan*r*|role|roles)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(prefix_count vlan_count)
+        COLUMN_NAMES+=("Prefix Count" "VLAN Count")
+      fi
+
       if [[ -n "$GRAPHQL" ]]
       then
         command=(
@@ -2285,11 +2310,6 @@ main() {
           "${JSON_COLUMNS_AFTER[@]}"
         )
       else
-        if [[ -z "$CUSTOM_COLUMNS" ]]
-        then
-          JSON_COLUMNS+=(prefix_count vlan_count)
-          COLUMN_NAMES+=("Prefix Count" "VLAN Count")
-        fi
         command=(netbox_list_roles)
       fi
       ;;
