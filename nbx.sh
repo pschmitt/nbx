@@ -2072,7 +2072,7 @@ main() {
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
         JSON_COLUMNS+=(device.name label role.name manufacturer.name serial asset_tag)
-        COLUMN_NAMES+=(Device Label Role Manufacturer Serial Asset)
+        COLUMN_NAMES+=(Device Label Role Manufacturer Serial "Asset Tag")
       fi
 
       if [[ -n "$GRAPHQL" ]]
