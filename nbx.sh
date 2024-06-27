@@ -2204,13 +2204,15 @@ main() {
       fi
       ;;
     svc|service*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(ports protocol)
+        COLUMN_NAMES+=(Ports Protocol)
+      fi
+
       if [[ -n "$GRAPHQL" ]]
       then
-        if [[ -z "$CUSTOM_COLUMNS" ]]
-        then
-          JSON_COLUMNS+=(ports protocol)
-          COLUMN_NAMES+=(Ports Protocol)
-        fi
+        mapfile -t JSON_COLUMNS < <(arr_replace protocol.value protocol "${JSON_COLUMNS[@]}")
 
         command=(
           netbox_graphql_objects service
@@ -2218,11 +2220,6 @@ main() {
           "${JSON_COLUMNS_AFTER[@]}"
         )
       else
-        if [[ -z "$CUSTOM_COLUMNS" ]]
-        then
-          JSON_COLUMNS+=(ports protocol.value)
-          COLUMN_NAMES+=(Ports Protocol)
-        fi
         command=(netbox_list_services)
       fi
       ;;
@@ -2262,6 +2259,7 @@ main() {
         JSON_COLUMNS+=(parent.name)
         COLUMN_NAMES+=(Parent)
       fi
+
       if [[ -n "$GRAPHQL" ]]
       then
         command=(
