@@ -1607,17 +1607,6 @@ main() {
     COLUMN_NAMES+=(Name Description)
   fi
 
-  case "$OUTPUT" in
-    pretty)
-      # Skip header and color if output is not a terminal
-      if [[ ! -t 1 ]]
-      then
-        [[ -z "$KEEP_HEADER" ]] && NO_HEADER=1
-        NO_COLOR=1
-      fi
-      ;;
-  esac
-
   if [[ -n "$WITH_ID_COL" ]]
   then
     JSON_COLUMNS=(id "${JSON_COLUMNS[@]}")
@@ -2553,6 +2542,13 @@ main() {
       jq -er --arg f "$FIELD" '.[][$f]' <<< "$JSON_DATA"
       ;;
     pretty)
+      # Skip header and color if output is not a terminal
+      if [[ ! -t 1 ]]
+      then
+        [[ -z "$KEEP_HEADER" ]] && NO_HEADER=1
+        NO_COLOR=1
+      fi
+
       case "$JSON_DATA" in
         "[]"|"{}"|"null")
           echo_warning "No data to display (empty result)"
