@@ -2638,22 +2638,27 @@ main() {
         command=(netbox_list_vrfs)
       fi
       ;;
-    webh*)
+    wh|webh*)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
-        JSON_COLUMNS+=(http_method http_content_type payload_url body_template tags)
-        COLUMN_NAMES+=(Method Content-Type URL Body Tags)
+        JSON_COLUMNS+=(http_method http_content_type payload_url body_template)
+        COLUMN_NAMES+=(Method Content-Type URL Body)
       fi
 
       if [[ -n "$GRAPHQL" ]]
       then
-        mapfile -t JSON_COLUMNS < <(arr_replace tags tags.name "${JSON_COLUMNS[@]}")
         command=(
           netbox_graphql_objects webhook
           "${JSON_COLUMNS[@]}"
           "${JSON_COLUMNS_AFTER[@]}"
         )
       else
+        # FIXME Fix tags in GraphQL
+        if [[ -z "$CUSTOM_COLUMNS" ]]
+        then
+          JSON_COLUMNS+=(tags)
+          COLUMN_NAMES+=(Tags)
+        fi
         command=(netbox_list_webhooks)
       fi
       ;;
