@@ -1424,6 +1424,11 @@ main() {
   local JSON_COLUMNS_REMOVE=()
   local COLUMN_NAMES_AFTER=()
 
+  # Below removes the equals signs from all opts
+  # ie: --api-token=foo -> --api-token foo
+  # shellcheck disable=SC2034,SC2046
+  set -- $(sed -r 's#(--?.+)=(.+)#\1 \2#' <<< "$@")
+
   while [[ -n "$*" ]]
   do
     case "$1" in
