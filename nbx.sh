@@ -1892,7 +1892,7 @@ main() {
 
       if [[ -n "$GRAPHQL" ]]
       then
-        # DIRTYFIX In REST it's virtualmachines, in GraphQL it's virtual_machines
+        # DIRTYFIX For REST it's virtualmachines, for GraphQL it's virtual_machines
         mapfile -t JSON_COLUMNS < <(arr_replace_all "virtualmachine" "virtual_machine" "${JSON_COLUMNS[@]}")
 
         command=(
@@ -2272,6 +2272,12 @@ main() {
       fi
       ;;
     vlg|vlan-g*|vlan*g*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(vlan_count)
+        COLUMN_NAMES+=("VLAN Count")
+      fi
+
       if [[ -n "$GRAPHQL" ]]
       then
         command=(
@@ -2280,13 +2286,14 @@ main() {
           "${JSON_COLUMNS_AFTER[@]}"
         )
       else
-        # TODO GraphQL support
+        # TODO GraphQL support: scope and utilization are not available in
+        # GraphQL at all it seems...
+        # vlg.scope does not have *any* fields in GraphQL
         if [[ -z "$CUSTOM_COLUMNS" ]]
         then
-          JSON_COLUMNS+=(scope_type scope.name vlan_count utilization)
-          COLUMN_NAMES+=("Scope Type" "Scope" "VLAN Count" Utilization)
+          JSON_COLUMNS+=(scope_type scope.name utilization)
+          COLUMN_NAMES+=("Scope Type" "Scope" Utilization)
         fi
-
         command=(netbox_list_vlan_groups)
       fi
       ;;
