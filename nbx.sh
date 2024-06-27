@@ -31,6 +31,8 @@ declare -A NETBOX_API_ENDPOINTS=(
   [cluster-types]="virtualization/cluster-types/"
   [cluster-groups]="virtualization/cluster-groups/"
   [config-contexts]="extras/config-contexts/"
+  [console-ports]="dcim/console-ports/"
+  [console-server-ports]="dcim/console-server-ports/"
   [contacts]="tenancy/contacts/"
   [contact-assignments]="tenancy/contact-assignments/"
   [contact-groups]="tenancy/contact-groups/"
@@ -95,46 +97,48 @@ usage() {
   echo
   echo "LIST ACTIONS"
   echo
-  echo "  aggregates          [FILTERS]   List aggregates"
-  echo "  cables              [FILTERS]   List cables"
-  echo "  circuits            [FILTERS]   List circuits"
-  echo "  clusters            [FILTERS]   List clusters"
-  echo "  cluster-groups      [FILTERS]   List cluster groups"
-  echo "  cluster-types       [FILTERS]   List cluster types"
-  echo "  config-contexts     [FILTERS]   List config contexts"
-  echo "  contacts            [FILTERS]   List contacts"
-  echo "  contact-assignments [FILTERS]   List contact assignments"
-  echo "  contact-groups      [FILTERS]   List contact groups"
-  echo "  contact-roles       [FILTERS]   List contact roles"
-  echo "  devices             [FILTERS]   List devices"
-  echo "  device-roles        [FILTERS]   List device roles"
-  echo "  device-types        [FILTERS]   List device types"
-  echo "  interfaces          [FILTERS]   List interfaces"
-  echo "  inventory-items     [FILTERS]   List inventory items"
-  echo "  ip-addresses        [FILTERS]   List IP addresses"
-  echo "  locations           [FILTERS]   List locations"
-  echo "  manufacturers       [FILTERS]   List manufacturers"
-  echo "  platforms           [FILTERS]   List platforms"
-  echo "  prefixes            [FILTERS]   List prefixes"
-  echo "  providers           [FILTERS]   List providers"
-  echo "  racks               [FILTERS]   List racks"
-  echo "  rack-reservations   [FILTERS]   List rack reservations"
-  echo "  rack-roles          [FILTERS]   List rack roles"
-  echo "  regions             [FILTERS]   List regions"
-  echo "  rirs                [FILTERS]   List RIRs"
-  echo "  services            [FILTERS]   List services"
-  echo "  sites               [FILTERS]   List sites"
-  echo "  tags                [FILTERS]   List tags"
-  echo "  tenants             [FILTERS]   List tenants"
-  echo "  tenant-groups       [FILTERS]   List tenants groups"
-  echo "  virtual-chassis     [FILTERS]   List virtual chassis"
-  echo "  vlans               [FILTERS]   List VLANs"
-  echo "  vlan-groups         [FILTERS]   List VLAN groups"
-  echo "  vlan-roles          [FILTERS]   List Prefix & VLAN roles"
-  echo "  vm                  [FILTERS]   List virtual machines"
-  echo "  vm-interfaces       [FILTERS]   List vm interfaces"
-  echo "  vrf                 [FILTERS]   List VRFs"
-  echo "  wifi                [FILTERS]   List wireless LANs"
+  echo "  aggregates            [FILTERS]   List aggregates"
+  echo "  cables                [FILTERS]   List cables"
+  echo "  circuits              [FILTERS]   List circuits"
+  echo "  clusters              [FILTERS]   List clusters"
+  echo "  cluster-groups        [FILTERS]   List cluster groups"
+  echo "  cluster-types         [FILTERS]   List cluster types"
+  echo "  config-contexts       [FILTERS]   List config contexts"
+  echo "  console-ports         [FILTERS]   List console ports"
+  echo "  console-server-ports  [FILTERS]   List console server ports"
+  echo "  contacts              [FILTERS]   List contacts"
+  echo "  contact-assignments   [FILTERS]   List contact assignments"
+  echo "  contact-groups        [FILTERS]   List contact groups"
+  echo "  contact-roles         [FILTERS]   List contact roles"
+  echo "  devices               [FILTERS]   List devices"
+  echo "  device-roles          [FILTERS]   List device roles"
+  echo "  device-types          [FILTERS]   List device types"
+  echo "  interfaces            [FILTERS]   List interfaces"
+  echo "  inventory-items       [FILTERS]   List inventory items"
+  echo "  ip-addresses          [FILTERS]   List IP addresses"
+  echo "  locations             [FILTERS]   List locations"
+  echo "  manufacturers         [FILTERS]   List manufacturers"
+  echo "  platforms             [FILTERS]   List platforms"
+  echo "  prefixes              [FILTERS]   List prefixes"
+  echo "  providers             [FILTERS]   List providers"
+  echo "  racks                 [FILTERS]   List racks"
+  echo "  rack-reservations     [FILTERS]   List rack reservations"
+  echo "  rack-roles            [FILTERS]   List rack roles"
+  echo "  regions               [FILTERS]   List regions"
+  echo "  rirs                  [FILTERS]   List RIRs"
+  echo "  services              [FILTERS]   List services"
+  echo "  sites                 [FILTERS]   List sites"
+  echo "  tags                  [FILTERS]   List tags"
+  echo "  tenants               [FILTERS]   List tenants"
+  echo "  tenant-groups         [FILTERS]   List tenants groups"
+  echo "  virtual-chassis       [FILTERS]   List virtual chassis"
+  echo "  vlans                 [FILTERS]   List VLANs"
+  echo "  vlan-groups           [FILTERS]   List VLAN groups"
+  echo "  vlan-roles            [FILTERS]   List Prefix & VLAN roles"
+  echo "  vm                    [FILTERS]   List virtual machines"
+  echo "  vm-interfaces         [FILTERS]   List vm interfaces"
+  echo "  vrf                   [FILTERS]   List VRFs"
+  echo "  wifi                  [FILTERS]   List wireless LANs"
   echo
   echo
   echo "META ACTIONS"
@@ -1793,6 +1797,7 @@ main() {
         JSON_COLUMNS+=(group.name email phone)
         COLUMN_NAMES+=(Group Email Phone)
       fi
+
       if [[ -n "$GRAPHQL" ]]
       then
         command=(
@@ -1802,6 +1807,45 @@ main() {
         )
       else
         command=(netbox_list_contacts)
+      fi
+      ;;
+    console-port*|consp)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(device.name type.label mark_connected)
+        COLUMN_NAMES+=(Device Type Reachable)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        mapfile -t JSON_COLUMNS < <(arr_replace type.label type "${JSON_COLUMNS[@]}")
+        command=(
+          netbox_graphql_objects console_port
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_console_ports)
+      fi
+      ;;
+    console-server-port*|cons*server*po)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(device.name type.label mark_connected)
+        COLUMN_NAMES+=(Device Type Reachable)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        mapfile -t JSON_COLUMNS < <(arr_replace type.label type "${JSON_COLUMNS[@]}")
+
+        command=(
+          netbox_graphql_objects console_server_port
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_console_server_ports)
       fi
       ;;
     contact-ass*|conass*|con-ass*)
@@ -1929,7 +1973,7 @@ main() {
         command=(netbox_list_device_types)
       fi
       ;;
-    intf*|interf*)
+    intf|interface|interfaces)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
         JSON_COLUMNS+=(device.name label enabled type.label)
