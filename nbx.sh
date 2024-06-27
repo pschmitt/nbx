@@ -71,6 +71,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [vlan-groups]="ipam/vlan-groups/"
   [vlans]="ipam/vlans/"
   [vrfs]="ipam/vrfs/"
+  [webhooks]="extras/webhooks/"
   [wireless-lans]="wireless/wireless-lans/"
 )
 
@@ -150,6 +151,7 @@ usage() {
   echo "  vm                    [FILTERS]   List virtual machines"
   echo "  vm-interfaces         [FILTERS]   List vm interfaces"
   echo "  vrf                   [FILTERS]   List VRFs"
+  echo "  webhooks              [FILTERS]   List webhooks"
   echo "  wifi                  [FILTERS]   List wireless LANs"
   echo
   echo
@@ -2634,6 +2636,25 @@ main() {
         )
       else
         command=(netbox_list_vrfs)
+      fi
+      ;;
+    webh*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(http_method http_content_type payload_url body_template tags)
+        COLUMN_NAMES+=(Method Content-Type URL Body Tags)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        mapfile -t JSON_COLUMNS < <(arr_replace tags tags.name "${JSON_COLUMNS[@]}")
+        command=(
+          netbox_graphql_objects webhook
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_webhooks)
       fi
       ;;
     wifi|wireless-lans)
