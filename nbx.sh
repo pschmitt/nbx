@@ -10,6 +10,7 @@ DEBUG="${DEBUG:-}"
 DEBUG_REDACT="${DEBUG_REDACT:-}"
 DEBUG_TRUNCATE="${DEBUG_TRUNCATE:-}"
 GRAPHQL="${GRAPHQL:-}"
+GROUP_JOIN_STR="${GROUP_JOIN_STR:-, }"
 KEEP_HEADER="${KEEP_HEADER:-}"
 NO_COLOR="${NO_COLOR:-}"
 NO_HEADER="${NO_HEADER:-}"
@@ -100,6 +101,7 @@ usage() {
   echo "  -C, --comments     Include comments column (shorthand for --cols +comments)"
   echo "  --columns COLUMNS  List of columns to display (prefix with '+' to append, '-' to remove)"
   echo "  -s, --sort FIELD   Sort by field/column (prefix with '-' to sort in reverse order)"
+  echo "  -J, --join STR     String to join fields when displaying multiple values in pretty output (default: ', ')"
   echo
   echo
   echo "LIST ACTIONS"
@@ -1417,6 +1419,7 @@ pretty_output() {
     fi
 
     jq -er \
+      --arg joinstr "${GROUP_JOIN_STR:-, }" \
       --arg sort_by "$sort_by" \
       --argjson sort_reverse "$sort_reverse" \
       --argjson cols_json "$columns_json_arr" \
@@ -1425,7 +1428,24 @@ pretty_output() {
         . as $obj |
         reduce $cols_json[] as $field (
           {}; . + {
-            ($field | gsub("\\."; "_")): $obj | getpath($field / ".")
+            ($field | gsub("\\."; "_")): (
+              $obj |
+              (
+                if ($field | contains("[]"))
+                then
+                  getpath($field | split("[]") | map(select(length > 0)) | .[0] | split("."))
+                elif (
+                  $field | split(".")[0] | in($obj)
+                  and
+                  ($obj[$field | split(".")[0]] | type) == "array"
+                )
+                then
+                  getpath($field | split(".")[0] | [.]) | map(getpath($field | split(".")[1:]))
+                else
+                  getpath($field | split("."))
+                end
+              )
+            )
           }
         );
 
@@ -1463,11 +1483,11 @@ pretty_output() {
               # array of strings/integers
               if all(.[]; (type == "string" or type == "number"))
               then
-                map(tostring) | join(", ")
+                map(tostring) | join($joinstr)
               elif all(.[]; type == "object" and has("name"))
               then
                 # array with multiple objects that all have names
-                [.[].name] | sort | join(" ")
+                [.[].name] | sort | join($joinstr)
               end
             end
           ) as $out |
@@ -1503,8 +1523,20 @@ main() {
 
   # Below removes the equals signs from all opts
   # ie: --api-token=foo -> --api-token foo
-  # shellcheck disable=SC2034,SC2046
-  set -- $(sed -r 's#(^| )(--?[^-= ]+)=([^= ]+)#\1\2 \3#g' <<< "$@")
+  local a
+  for a in "$@"
+  do
+    if [[ "$a" =~ ^(--?[^=]+)=(.*)$ ]]
+    then
+      args+=("${BASH_REMATCH[1]}")
+      args+=("${BASH_REMATCH[2]}")
+    else
+      args+=("$a")
+    fi
+  done
+
+  set -- "${args[@]}"
+  unset args
 
   while [[ -n "$*" ]]
   do
@@ -1578,6 +1610,10 @@ main() {
       -I|--id*|--with-id)
         WITH_ID_COL=1
         shift
+        ;;
+      -J|--join*)
+        GROUP_JOIN_STR="$2"
+        shift 2
         ;;
       -C|--comment*|--with-comment*)
         JSON_COLUMNS_AFTER+=(comments)
@@ -2641,24 +2677,19 @@ main() {
     wh|webh*)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
-        JSON_COLUMNS+=(http_method http_content_type payload_url body_template)
-        COLUMN_NAMES+=(Method Content-Type URL Body)
+        JSON_COLUMNS+=(http_method http_content_type payload_url body_template tags)
+        COLUMN_NAMES+=(Method Content-Type URL Body Tags)
       fi
 
       if [[ -n "$GRAPHQL" ]]
       then
+        mapfile -t JSON_COLUMNS < <(arr_replace tags tags.name "${JSON_COLUMNS[@]}")
         command=(
           netbox_graphql_objects webhook
           "${JSON_COLUMNS[@]}"
           "${JSON_COLUMNS_AFTER[@]}"
         )
       else
-        # FIXME Fix tags in GraphQL
-        if [[ -z "$CUSTOM_COLUMNS" ]]
-        then
-          JSON_COLUMNS+=(tags)
-          COLUMN_NAMES+=(Tags)
-        fi
         command=(netbox_list_webhooks)
       fi
       ;;
