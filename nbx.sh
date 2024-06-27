@@ -1712,8 +1712,8 @@ main() {
     c|cl|cluster*)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
-        JSON_COLUMNS+=(group.name type.name)
-        COLUMN_NAMES+=(Group Type)
+        JSON_COLUMNS+=(group.name type.name device_count)
+        COLUMN_NAMES+=(Group Type "Device Count")
       fi
 
       if [[ -n "$GRAPHQL" ]]
@@ -1725,12 +1725,6 @@ main() {
         )
       else
         command=(netbox_list_clusters)
-        # FIXME Add support for graphql
-        if [[ -z "$CUSTOM_COLUMNS" ]]
-        then
-          JSON_COLUMNS+=(device_count)
-          COLUMN_NAMES+=(Devices)
-        fi
       fi
       ;;
     clg|clgrp*|cl-g*)
@@ -1738,7 +1732,7 @@ main() {
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
         JSON_COLUMNS+=(cluster_count)
-        COLUMN_NAMES+=("Clusters")
+        COLUMN_NAMES+=("Cluster Count")
       fi
 
       if [[ -n "$GRAPHQL" ]]
@@ -1753,6 +1747,12 @@ main() {
       fi
       ;;
     clt|cltype*|cl-t*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(cluster_count)
+        COLUMN_NAMES+=("Cluster Count")
+      fi
+
       if [[ -n "$GRAPHQL" ]]
       then
         command=(
@@ -1761,13 +1761,6 @@ main() {
           "${JSON_COLUMNS_AFTER[@]}"
         )
       else
-        # TODO Add support for graphql
-        if [[ -z "$CUSTOM_COLUMNS" ]]
-        then
-          JSON_COLUMNS+=(cluster_count)
-          COLUMN_NAMES+=("Clusters")
-        fi
-
         command=(netbox_list_cluster_types)
       fi
       ;;
@@ -1894,18 +1887,20 @@ main() {
       fi
       ;;
     dr|device-role*|dev*rol*)
-      JSON_COLUMNS+=(vm_role)
-      COLUMN_NAMES+=("VM Role")
+      JSON_COLUMNS+=(vm_role device_count virtualmachine_count)
+      COLUMN_NAMES+=("VM Role" "Device Count" "VM Count")
+
       if [[ -n "$GRAPHQL" ]]
       then
+        # DIRTYFIX In REST it's virtualmachines, in GraphQL it's virtual_machines
+        mapfile -t JSON_COLUMNS < <(arr_replace_all "virtualmachine" "virtual_machine" "${JSON_COLUMNS[@]}")
+
         command=(
           netbox_graphql_objects device_role
           "${JSON_COLUMNS[@]}"
           "${JSON_COLUMNS_AFTER[@]}"
         )
       else
-        JSON_COLUMNS+=(device_count virtualmachine_count)
-        COLUMN_NAMES+=("Devices" "VMs")
         command=(netbox_list_device_roles)
       fi
       ;;
