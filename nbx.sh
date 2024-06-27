@@ -20,7 +20,6 @@ PEDANTIC="${PENDANTIC:-}"
 SORT_BY="${SORT_BY:-name}"
 WITH_ID_COL="${WITH_ID_COL:-}"
 
-mapfile -t CUSTOM_COLUMNS < <(tr ',' '\n' <<< "${CUSTOM_COLUMNS:-}")
 JSON_COLUMNS=()
 COLUMN_NAMES=()
 
@@ -959,6 +958,7 @@ netbox_graphql_objects() {
   local -a args filters
 
   local filters_resolved
+  # shellcheck disable=SC2207
   if ! filters_resolved=($(TARGET_OBJECT="$object_type" resolve_filters "$@"))
   then
     if [[ -n "$PEDANTIC" ]]
@@ -1176,6 +1176,7 @@ netbox_list() {
   shift
 
   local filters_resolved
+  # shellcheck disable=SC2207
   if ! filters_resolved=($(TARGET_OBJECT="$endpoint" resolve_filters "$@"))
   then
     if [[ -n "$PEDANTIC" ]]
@@ -1337,6 +1338,7 @@ netbox_assign_devices_to_cluster() {
   fi
 
   local filters_resolved
+  # shellcheck disable=SC2207
   if ! filters_resolved=($(TARGET_OBJECT="device" resolve_filters "$@"))
   then
     if [[ -n "$PEDANTIC" ]]
@@ -1555,7 +1557,7 @@ main() {
   local JSON_COLUMNS_AFTER=()
   local JSON_COLUMNS_REMOVE=()
   local COLUMN_NAMES_AFTER=()
-
+  local CUSTOM_COLUMNS=''
   local CUSTOM_SORT=''
 
   # Below removes the equals signs from all opts
@@ -1658,8 +1660,6 @@ main() {
         shift
         ;;
       --columns|--cols)
-        # FIXME Use an associative array for COLUMNS
-        local CUSTOM_COLUMNS=''
         local cols_custom=()
         local after
         local remove
