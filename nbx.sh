@@ -47,6 +47,8 @@ declare -A NETBOX_API_ENDPOINTS=(
   [manufacturers]="dcim/manufacturers/"
   [platforms]="dcim/platforms/"
   [prefixes]="ipam/prefixes/"
+  [power-ports]="dcim/power-ports/"
+  [power-outlets]="dcim/power-outlets/"
   [providers]="circuits/providers/"
   [racks]="dcim/racks/"
   [rack-roles]="dcim/rack-roles/"
@@ -119,6 +121,8 @@ usage() {
   echo "  locations             [FILTERS]   List locations"
   echo "  manufacturers         [FILTERS]   List manufacturers"
   echo "  platforms             [FILTERS]   List platforms"
+  echo "  power-ports           [FILTERS]   List power ports"
+  echo "  power-outlets         [FILTERS]   List power outlets"
   echo "  prefixes              [FILTERS]   List prefixes"
   echo "  providers             [FILTERS]   List providers"
   echo "  racks                 [FILTERS]   List racks"
@@ -2113,6 +2117,42 @@ main() {
         )
       else
         command=(netbox_list_platforms)
+      fi
+      ;;
+    pp|pow*port)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(device.name type maximum_draw allocated_draw)
+        COLUMN_NAMES+=(Device Type "Maximum Draw" "Allocated Draw")
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects power_port
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_power_ports)
+      fi
+      ;;
+    po|power*out*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(device.name type power_port.name feed_leg)
+        COLUMN_NAMES+=(Device Type "Power Port" "Feed Leg")
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects power_outlet
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_power_outlets)
       fi
       ;;
     prov*)
