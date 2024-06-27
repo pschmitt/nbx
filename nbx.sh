@@ -1427,7 +1427,7 @@ main() {
   # Below removes the equals signs from all opts
   # ie: --api-token=foo -> --api-token foo
   # shellcheck disable=SC2034,SC2046
-  set -- $(sed -r 's#(--?.+)=(.+)#\1 \2#' <<< "$@")
+  set -- $(sed -r 's#(^| )(--?[^-= ]+)=([^= ]+)#\1\2 \3#g' <<< "$@")
 
   while [[ -n "$*" ]]
   do
