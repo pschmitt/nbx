@@ -1336,8 +1336,17 @@ netbox_assign_devices_to_cluster() {
     cluster_id="$cluster"
   fi
 
-  # shellcheck disable=SC2046
-  set -- $(TARGET_OBJECT=device resolve_filters "$@")
+  local filters_resolved
+  if ! filters_resolved=($(TARGET_OBJECT="device" resolve_filters "$@"))
+  then
+    if [[ -n "$PEDANTIC" ]]
+    then
+      echo_warning "Invalid filters provided: $*"
+      return 1
+    fi
+  fi
+
+  set -- "${filters_resolved[@]}"
 
   local device_filters=("$@")
   if [[ "${#device_filters[@]}" -eq 0 ]] || \
@@ -2053,7 +2062,7 @@ main() {
         command=(netbox_list_custom_fields)
       fi
       ;;
-    d|dev|devices)
+    d|dev|device|devices)
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
         JSON_COLUMNS+=(
