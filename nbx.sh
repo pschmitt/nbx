@@ -27,46 +27,48 @@ declare -A NETBOX_API_ENDPOINTS=(
   [aggregates]="ipam/aggregates/"
   [cables]="dcim/cables/"
   [circuits]="circuits/circuits/"
-  [clusters]="virtualization/clusters/"
-  [cluster-types]="virtualization/cluster-types/"
   [cluster-groups]="virtualization/cluster-groups/"
+  [cluster-types]="virtualization/cluster-types/"
+  [clusters]="virtualization/clusters/"
   [config-contexts]="extras/config-contexts/"
   [console-ports]="dcim/console-ports/"
   [console-server-ports]="dcim/console-server-ports/"
-  [contacts]="tenancy/contacts/"
   [contact-assignments]="tenancy/contact-assignments/"
   [contact-groups]="tenancy/contact-groups/"
   [contact-roles]="tenancy/contact-roles/"
-  [devices]="dcim/devices/"
+  [contacts]="tenancy/contacts/"
   [device-bays]="dcim/device-bays/"
   [device-roles]="dcim/device-roles/"
   [device-types]="dcim/device-types/"
+  [devices]="dcim/devices/"
+  [front-ports]="dcim/front-ports/"
   [interfaces]="dcim/interfaces/"
   [inventory-items]="dcim/inventory-items/"
   [ip-addresses]="ipam/ip-addresses/"
   [locations]="dcim/locations/"
   [manufacturers]="dcim/manufacturers/"
   [platforms]="dcim/platforms/"
-  [prefixes]="ipam/prefixes/"
-  [power-ports]="dcim/power-ports/"
   [power-outlets]="dcim/power-outlets/"
+  [power-ports]="dcim/power-ports/"
+  [prefixes]="ipam/prefixes/"
   [providers]="circuits/providers/"
-  [racks]="dcim/racks/"
-  [rack-roles]="dcim/rack-roles/"
   [rack-reservations]="dcim/rack-reservations/"
+  [rack-roles]="dcim/rack-roles/"
+  [racks]="dcim/racks/"
+  [rear-ports]="dcim/rear-ports/"
   [regions]="dcim/regions/"
   [rirs]="ipam/rirs/"
   [roles]="ipam/roles/"
   [services]="ipam/services/"
   [sites]="dcim/sites/"
-  [tenants]="tenancy/tenants/"
-  [tenant-groups]="tenancy/tenant-groups/"
   [tags]="extras/tags/"
+  [tenant-groups]="tenancy/tenant-groups/"
+  [tenants]="tenancy/tenants/"
   [virtual-chassis]="dcim/virtual-chassis/"
-  [virtual-machines]="virtualization/virtual-machines/"
   [virtual-machine-interfaces]="virtualization/interfaces/"
-  [vlans]="ipam/vlans/"
+  [virtual-machines]="virtualization/virtual-machines/"
   [vlan-groups]="ipam/vlan-groups/"
+  [vlans]="ipam/vlans/"
   [vrfs]="ipam/vrfs/"
   [wireless-lans]="wireless/wireless-lans/"
 )
@@ -103,44 +105,46 @@ usage() {
   echo "  aggregates            [FILTERS]   List aggregates"
   echo "  cables                [FILTERS]   List cables"
   echo "  circuits              [FILTERS]   List circuits"
-  echo "  clusters              [FILTERS]   List clusters"
   echo "  cluster-groups        [FILTERS]   List cluster groups"
   echo "  cluster-types         [FILTERS]   List cluster types"
+  echo "  clusters              [FILTERS]   List clusters"
   echo "  config-contexts       [FILTERS]   List config contexts"
   echo "  console-ports         [FILTERS]   List console ports"
   echo "  console-server-ports  [FILTERS]   List console server ports"
-  echo "  contacts              [FILTERS]   List contacts"
   echo "  contact-assignments   [FILTERS]   List contact assignments"
   echo "  contact-groups        [FILTERS]   List contact groups"
   echo "  contact-roles         [FILTERS]   List contact roles"
-  echo "  devices               [FILTERS]   List devices"
+  echo "  contacts              [FILTERS]   List contacts"
   echo "  device-bays           [FILTERS]   List device bays"
   echo "  device-roles          [FILTERS]   List device roles"
   echo "  device-types          [FILTERS]   List device types"
+  echo "  devices               [FILTERS]   List devices"
+  echo "  front-ports           [FILTERS]   List front ports"
   echo "  interfaces            [FILTERS]   List interfaces"
   echo "  inventory-items       [FILTERS]   List inventory items"
   echo "  ip-addresses          [FILTERS]   List IP addresses"
   echo "  locations             [FILTERS]   List locations"
   echo "  manufacturers         [FILTERS]   List manufacturers"
   echo "  platforms             [FILTERS]   List platforms"
-  echo "  power-ports           [FILTERS]   List power ports"
   echo "  power-outlets         [FILTERS]   List power outlets"
+  echo "  power-ports           [FILTERS]   List power ports"
   echo "  prefixes              [FILTERS]   List prefixes"
   echo "  providers             [FILTERS]   List providers"
-  echo "  racks                 [FILTERS]   List racks"
   echo "  rack-reservations     [FILTERS]   List rack reservations"
   echo "  rack-roles            [FILTERS]   List rack roles"
+  echo "  racks                 [FILTERS]   List racks"
+  echo "  rear-ports            [FILTERS]   List rear ports"
   echo "  regions               [FILTERS]   List regions"
   echo "  rirs                  [FILTERS]   List RIRs"
   echo "  services              [FILTERS]   List services"
   echo "  sites                 [FILTERS]   List sites"
   echo "  tags                  [FILTERS]   List tags"
-  echo "  tenants               [FILTERS]   List tenants"
   echo "  tenant-groups         [FILTERS]   List tenants groups"
+  echo "  tenants               [FILTERS]   List tenants"
   echo "  virtual-chassis       [FILTERS]   List virtual chassis"
-  echo "  vlans                 [FILTERS]   List VLANs"
   echo "  vlan-groups           [FILTERS]   List VLAN groups"
   echo "  vlan-roles            [FILTERS]   List Prefix & VLAN roles"
+  echo "  vlans                 [FILTERS]   List VLANs"
   echo "  vm                    [FILTERS]   List virtual machines"
   echo "  vm-interfaces         [FILTERS]   List vm interfaces"
   echo "  vrf                   [FILTERS]   List VRFs"
@@ -321,7 +325,35 @@ arr_replace() {
   done
 }
 
-arr_replace_all() {
+arr_replace_multiple() {
+  local -a arr_repl
+
+  while [[ -n "$*" ]]
+  do
+    case "$1" in
+      --)
+        shift
+        break
+      ;;
+      *)
+        arr_repl+=("$1")
+        shift
+      ;;
+    esac
+  done
+
+  local -a arr=("$@")
+
+  local i
+  for ((i=0; i<${#arr_repl[@]}; i+=2))
+  do
+    mapfile -t arr < <(arr_replace "${arr_repl[$i]}" "${arr_repl[$((i+1))]}" "${arr[@]}")
+  done
+
+  printf '%s\n' "${arr[@]}"
+}
+
+arr_gsub() {
   local search="$1"
   local replacement="$2"
   shift 2
@@ -333,6 +365,35 @@ arr_replace_all() {
   do
     echo "${i//${search}/${replacement}}"
   done
+}
+
+arr_gsub_multiple() {
+  local -a arr_repl
+
+  while [[ -n "$*" ]]
+  do
+    case "$1" in
+      --)
+        shift
+        break
+      ;;
+      *)
+        arr_repl+=("$1")
+        shift
+      ;;
+    esac
+  done
+
+  local -a arr=("$@")
+
+  local i
+  for ((i=0; i<${#arr_repl[@]}; i+=2))
+  do
+    mapfile -t arr < <(arr_gsub "${arr_repl[$i]}" "${arr_repl[$((i+1))]}" "${arr[@]}")
+  done
+
+  printf '%s\n' "${arr[@]}"
+
 }
 
 arr_index_of() {
@@ -973,9 +1034,11 @@ netbox_graphql_objects() {
   fi
 
   # Replace _count fields with the actual field name
-  mapfile -t fields < <(arr_replace_all "_count" "s {id}" "${fields[@]}")
-  # DIRTYFIX Some plurals are weird
-  mapfile -t fields < <(arr_replace_all "prefixs" "prefixes" "${fields[@]}")
+  # + fix some plural forms
+  mapfile -t fields < <(arr_gsub_multiple \
+    _count "s {id}" \
+    prefixs "prefixes" \
+    -- "${fields[@]}")
 
   local q="${graphql_func}"
 
@@ -1955,7 +2018,7 @@ main() {
       if [[ -n "$GRAPHQL" ]]
       then
         # DIRTYFIX For REST it's virtualmachines, for GraphQL it's virtual_machines
-        mapfile -t JSON_COLUMNS < <(arr_replace_all "virtualmachine" "virtual_machine" "${JSON_COLUMNS[@]}")
+        mapfile -t JSON_COLUMNS < <(arr_gsub "virtualmachine" "virtual_machine" "${JSON_COLUMNS[@]}")
 
         command=(
           netbox_graphql_objects device_role
@@ -1987,6 +2050,28 @@ main() {
         )
       else
         command=(netbox_list_device_types)
+      fi
+      ;;
+    front*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(device.name type.value rear_port.name rear_port_position)
+        COLUMN_NAMES+=(Device Type "Rear Port" Position)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        mapfile -t JSON_COLUMNS < <(arr_replace_multiple \
+          type.value type \
+          rear_port_position rear_port.positions \
+          -- "${JSON_COLUMNS[@]}")
+        command=(
+          netbox_graphql_objects front_port
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_front_ports)
       fi
       ;;
     intf|interface|interfaces)
@@ -2109,8 +2194,10 @@ main() {
       then
         # DIRTYFIX For REST it's devicetype and inventoryitem, for GraphQL
         # it's device_type and inventory_item
-        mapfile -t JSON_COLUMNS < <(arr_replace_all "devicetype" "device_type" "${JSON_COLUMNS[@]}")
-        mapfile -t JSON_COLUMNS < <(arr_replace_all "inventoryitem" "inventory_item" "${JSON_COLUMNS[@]}")
+        mapfile -t JSON_COLUMNS < <(arr_gsub_multiple \
+          "devicetype" "device_type" \
+          "inventoryitem" "inventory_item" \
+          -- "${JSON_COLUMNS[@]}")
 
         command=(
           netbox_graphql_objects manufacturer
@@ -2245,6 +2332,24 @@ main() {
         )
       else
         command=(netbox_list_rack_roles)
+      fi
+      ;;
+    rear*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(device.name type)
+        COLUMN_NAMES+=(Device Type)
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects rear_port
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_rear_ports)
       fi
       ;;
     rir*)
