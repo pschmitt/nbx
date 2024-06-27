@@ -80,7 +80,8 @@ usage() {
   echo "  -k, --dry-run      Dry-run mode"
   echo "  --confirm          Confirm before executing actions"
   echo "  --no-confirm       Do not confirm before executing actions"
-  echo "  -o, --output TYPE  Output format: pretty (default), json"
+  echo "  -o, --output TYPE  Output format: pretty (default), json, field"
+  echo "  -F, --field FIELD  Field to output when using 'field' output format"
   echo "  -j, --json         Output format: json"
   echo "  -N, --no-header    Do not print header"
   echo "  -c, --no-color     Disable color output"
@@ -1448,6 +1449,11 @@ main() {
         OUTPUT=json
         shift
         ;;
+      -F|--field)
+        FIELD="$2"
+        OUTPUT=field
+        shift 2
+        ;;
       -N|-no-header)
         NO_HEADER=1
         shift
@@ -2471,6 +2477,9 @@ main() {
   case "$OUTPUT" in
     json)
       jq -er '.' <<< "$JSON_DATA"
+      ;;
+    field)
+      jq -er --arg f "$FIELD" '.[][$f]' <<< "$JSON_DATA"
       ;;
     pretty)
       case "$JSON_DATA" in
