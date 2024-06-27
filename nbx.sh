@@ -1488,6 +1488,8 @@ pretty_output() {
               then
                 # array with multiple objects that all have names
                 [.[].name] | sort | join($joinstr)
+              else
+                . | tostring
               end
             end
           ) as $out |
@@ -1496,7 +1498,12 @@ pretty_output() {
           40 as $maxwidth |
           if ($compact and (($out | length) > $maxwidth))
           then
-            $out[0:$maxwidth] + "…"
+            # Below ellipizes at the end
+            # $out[0:$maxwidth] + "…"
+
+            # Ellipsize in the middle: beginning + "…" + end_of_str
+            (($maxwidth - 1) / 2) as $halfwidth |
+            ($out[0:($halfwidth | floor)] + "…" + $out[-($halfwidth | ceil):])
           else
             $out
           end
