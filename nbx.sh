@@ -38,6 +38,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [contact-groups]="tenancy/contact-groups/"
   [contact-roles]="tenancy/contact-roles/"
   [devices]="dcim/devices/"
+  [device-bays]="dcim/device-bays/"
   [device-roles]="dcim/device-roles/"
   [device-types]="dcim/device-types/"
   [interfaces]="dcim/interfaces/"
@@ -113,6 +114,7 @@ usage() {
   echo "  contact-groups        [FILTERS]   List contact groups"
   echo "  contact-roles         [FILTERS]   List contact roles"
   echo "  devices               [FILTERS]   List devices"
+  echo "  device-bays           [FILTERS]   List device bays"
   echo "  device-roles          [FILTERS]   List device roles"
   echo "  device-types          [FILTERS]   List device types"
   echo "  interfaces            [FILTERS]   List interfaces"
@@ -1926,6 +1928,24 @@ main() {
         )
       else
         command=(netbox_list_devices)
+      fi
+      ;;
+    db|device-bay*|dev*bay*)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(device.name installed_device.name)
+        COLUMN_NAMES+=(Device "Installed Device")
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects device_bay
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_device_bays)
       fi
       ;;
     dr|device-role*|dev*rol*)
