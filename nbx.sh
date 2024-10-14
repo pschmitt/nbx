@@ -2189,6 +2189,9 @@ main() {
       then
         mapfile -t JSON_COLUMNS < <(arr_replace type.label type "${JSON_COLUMNS[@]}")
 
+        JSON_COLUMNS+=("ip_addresses.address")
+        COLUMN_NAMES+=("IP Addresses")
+
         command=(
           netbox_graphql_objects interface
           "${JSON_COLUMNS[@]}"
