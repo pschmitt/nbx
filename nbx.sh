@@ -1857,17 +1857,19 @@ main() {
       if [[ -z "$CUSTOM_COLUMNS" ]]
       then
         JSON_COLUMNS+=(group.name type.name device_count)
-        COLUMN_NAMES+=(Group Type "Device Count")
+        COLUMN_NAMES+=(Group Type "Device Count" "Status")
       fi
 
       if [[ -n "$GRAPHQL" ]]
       then
+        JSON_COLUMNS+=(status)
         command=(
           netbox_graphql_objects cluster
           "${JSON_COLUMNS[@]}"
           "${JSON_COLUMNS_AFTER[@]}"
         )
       else
+        JSON_COLUMNS+=(status.label)
         command=(netbox_list_clusters)
       fi
       ;;
