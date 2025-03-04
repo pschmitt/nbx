@@ -1953,16 +1953,40 @@ main() {
         COLUMN_NAMES+=(Device Type Reachable)
       fi
 
-      if [[ -n "$GRAPHQL" ]]
+      if [[ -z "$GRAPHQL" ]]
       then
+        JSON_COLUMNS+=('link_peers.device.name' 'link_peers.display')
+        COLUMN_NAMES+=("Console Device" "Console Port")
+        command=(netbox_list_console_ports)
+      else
+        # TODO Add "Console Device" and "Console Port" columns
+        # The graphql query is a bit more complex though, which requires
+        # refactoring our graphql functions:
+        # {
+        #   console_port_list(device_id: "69420") {
+        #     name
+        #     description
+        #     type
+        #     mark_connected
+        #     device {
+        #       name
+        #     }
+        #     link_peers {
+        #       ... on ConsoleServerPortType {
+        #         name
+        #         device {
+        #           name
+        #         }
+        #       }
+        #     }
+        #   }
+        # }
         mapfile -t JSON_COLUMNS < <(arr_replace type.label type "${JSON_COLUMNS[@]}")
         command=(
           netbox_graphql_objects console_port
           "${JSON_COLUMNS[@]}"
           "${JSON_COLUMNS_AFTER[@]}"
         )
-      else
-        command=(netbox_list_console_ports)
       fi
       ;;
     console-server-port*|cons*server*po)
