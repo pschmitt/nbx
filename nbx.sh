@@ -670,54 +670,57 @@ netbox_graphql() {
   return "$rc"
 }
 
+# Convert a dot-separated field (e.g. "device.name") into nested GraphQL syntax.
+convert_dot_field() {
+  local field="$1"
+
+  if [[ "$field" != *"."* ]]
+  then
+    echo "$field"
+    return
+  fi
+
+  local first="${field%%.*}"
+  local rest="${field#*.}"
+  echo "$first { $(convert_dot_field "$rest") }"
+}
+
+# Process an array of field strings into a GraphQL field selection string.
+# New syntax: unionField<Type>.nested.field will be transformed into:
+#   unionField { __typename, ... on Type { nested { field } } }
 to_graphql_fields() {
-  local fields=("$@")
+  local -a fields=("$@")
+  local -a out_fields=()
 
-  # Recursive function to process nested fields
-  process_fields() {
-    local field
-    local fields=("$@")
-    local -A map
-    local key
-    local rest
-    local nested_output=""
+  # Store the regex in a variable so we don't re-declare it inside the loop.
+  regex='^([^<]+)<([^>]+)>(\..+)?$'
+  union_field=""
+  union_type=""
+  nested=""
+  nested_fields=""
 
-    # Split fields and map them to their parents
-    for field in "${fields[@]}"
-    do
-      IFS='.' read -r key rest <<< "$field"
-      if [[ -n "$rest" ]]
+  for field in "${fields[@]}"
+  do
+    if [[ "$field" =~ $regex ]]
+    then
+      union_field="${BASH_REMATCH[1]}"
+      union_type="${BASH_REMATCH[2]}"
+      nested="${BASH_REMATCH[3]}"
+      # Remove a leading dot if present.
+      nested="${nested#.}"
+      if [[ -n "$nested" ]]
       then
-        map[$key]+="${rest} "
+        nested_fields="$(convert_dot_field "$nested")"
       else
-        nested_output+="$key, "
+        nested_fields=""
       fi
-    done
+      out_fields+=("$union_field { __typename, ... on $union_type { $nested_fields } }")
+    else
+      out_fields+=("$(convert_dot_field "$field")")
+    fi
+  done
 
-    # Process each key in the map
-    local nested_fields
-    local sub_output
-    for key in "${!map[@]}"
-    do
-      # shellcheck disable=SC2206
-      nested_fields=(${map[$key]})
-      sub_output=$(process_fields "${nested_fields[@]}")
-      nested_output+="$key { $sub_output }, "
-    done
-
-    # Remove trailing comma and space from the current output
-    echo "${nested_output%, }"
-  }
-
-  # Process top-level fields
-  local top_level_output
-  top_level_output=$(process_fields "${fields[@]}")
-
-  # Remove trailing comma and space from the final output
-  top_level_output="${top_level_output%, }"
-
-  # Print the final result
-  echo "$top_level_output"
+  IFS=", " echo "${out_fields[*]}"
 }
 
 netbox_graphql_introspect() {
@@ -1425,7 +1428,6 @@ pretty_output() {
   {
     if [[ -z "$NO_HEADER" ]]
     then
-      # shellcheck disable=SC2031
       for col in "${COLUMN_NAMES[@]}"
       do
         if [[ -n "$NO_COLOR" ]]
@@ -1448,33 +1450,40 @@ pretty_output() {
       sort_reverse=true
     fi
 
-    jq -er \
+    jq -er <<< "$(cat)" \
       --arg joinstr "${GROUP_JOIN_STR:-, }" \
       --arg sort_by "$sort_by" \
       --argjson sort_reverse "$sort_reverse" \
       --argjson cols_json "$columns_json_arr" \
       --argjson compact "$compact" '
+      def extractPath($obj; $path):
+        if ($path | length) == 0
+        then
+          $obj
+        else
+          ($path[0]) as $key |
+          if ($obj[$key] | type) == "array"
+          then
+            ($obj[$key] | map(extractPath(.; $path[1:])))
+          else
+            extractPath($obj[$key]; $path[1:])
+          end
+        end;
+
       def extractFields:
         . as $obj |
         reduce $cols_json[] as $field (
-          {}; . + {
-            ($field | gsub("\\."; "_")): (
-              $obj |
-              (
-                if ($field | contains("[]"))
-                then
-                  getpath($field | split("[]") | map(select(length > 0)) | .[0] | split("."))
-                elif (
-                  $field | split(".")[0] | in($obj)
-                  and
-                  ($obj[$field | split(".")[0]] | type) == "array"
-                )
-                then
-                  getpath($field | split(".")[0] | [.]) | map(getpath($field | split(".")[1:]))
-                else
-                  getpath($field | split("."))
-                end
-              )
+          {};
+          . + {
+            ($field
+              | gsub("<[^>]+>"; "")   # strip union markers
+              | gsub("\\."; "_")       # replace dots with underscores
+            ): (
+              ($field
+                | gsub("<[^>]+>"; "")   # strip union markers from the path
+                | split(".")
+              ) as $path |
+              extractPath($obj; $path)
             )
           }
         );
@@ -1491,18 +1500,17 @@ pretty_output() {
           else
             .[ $sort_by ]
           end
-        ) | (if $sort_reverse then reverse else . end) | map(extractFields)[]
+        )
+        | (if $sort_reverse then reverse else . end)
+        | map(extractFields)[]
       else
         extractFields
       end |
       map(
-        if (
-          (. | type == "null") or
-          ((. | type == "string") and ((. | length) == 0))
-        )
+        if ((. | type) == "null") or ((. | type) == "string" and (. | length) == 0)
         then
           $NA
-        elif (. | type == "array")
+        elif (. | type) == "array"
         then
           (
             if (. | length) == 0
@@ -1953,40 +1961,27 @@ main() {
         COLUMN_NAMES+=(Device Type Reachable)
       fi
 
-      if [[ -z "$GRAPHQL" ]]
+      if [[ -n "$GRAPHQL" ]]
       then
-        JSON_COLUMNS+=('link_peers.device.name' 'link_peers.display')
-        COLUMN_NAMES+=("Console Device" "Console Port")
-        command=(netbox_list_console_ports)
-      else
-        # TODO Add "Console Device" and "Console Port" columns
-        # The graphql query is a bit more complex though, which requires
-        # refactoring our graphql functions:
-        # {
-        #   console_port_list(device_id: "69420") {
-        #     name
-        #     description
-        #     type
-        #     mark_connected
-        #     device {
-        #       name
-        #     }
-        #     link_peers {
-        #       ... on ConsoleServerPortType {
-        #         name
-        #         device {
-        #           name
-        #         }
-        #       }
-        #     }
-        #   }
-        # }
-        mapfile -t JSON_COLUMNS < <(arr_replace type.label type "${JSON_COLUMNS[@]}")
+        if [[ -z "$CUSTOM_COLUMNS" ]]
+        then
+          mapfile -t JSON_COLUMNS < <(arr_replace type.label type "${JSON_COLUMNS[@]}")
+          JSON_COLUMNS+=('link_peers<ConsoleServerPortType>.device.name' 'link_peers<ConsoleServerPortType>.display')
+          COLUMN_NAMES+=("Console Device" "Console Port")
+        fi
+
         command=(
           netbox_graphql_objects console_port
           "${JSON_COLUMNS[@]}"
           "${JSON_COLUMNS_AFTER[@]}"
         )
+      else
+        if [[ -z "$CUSTOM_COLUMNS" ]]
+        then
+          JSON_COLUMNS+=('link_peers.device.name' 'link_peers.display')
+          COLUMN_NAMES+=("Console Device" "Console Port")
+        fi
+        command=(netbox_list_console_ports)
       fi
       ;;
     console-server-port*|cons*server*po)
