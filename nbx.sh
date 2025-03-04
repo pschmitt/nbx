@@ -1477,10 +1477,10 @@ pretty_output() {
           . + {
             ($field
               | gsub("<[^>]+>"; "")   # strip union markers
-              | gsub("\\."; "_")       # replace dots with underscores
+              | gsub("\\."; "_")      # replace dots with underscores
             ): (
               ($field
-                | gsub("<[^>]+>"; "")   # strip union markers from the path
+                | gsub("<[^>]+>"; "") # strip union markers from the path
                 | split(".")
               ) as $path |
               extractPath($obj; $path)
