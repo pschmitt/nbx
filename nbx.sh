@@ -1182,11 +1182,8 @@ netbox_list() {
   # shellcheck disable=SC2207
   if ! filters_resolved=($(TARGET_OBJECT="$endpoint" resolve_filters "$@"))
   then
-    if [[ -n "$PEDANTIC" ]]
-    then
-      echo_warning "Invalid filters provided: $*"
-      return 1
-    fi
+    echo_warning "Invalid filters provided: $*"
+    return 1
   fi
 
   set -- "${filters_resolved[@]}"
