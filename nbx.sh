@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+VERSION="${VERSION:-dev}"
 NETBOX_URL="${NETBOX_URL:-https://demo.netbox.dev}"
 NETBOX_API_TOKEN="${NETBOX_API_TOKEN:-}"
 
@@ -76,10 +77,12 @@ declare -A NETBOX_API_ENDPOINTS=(
 )
 
 usage() {
+  echo "nbx version ${VERSION}" >&2
   echo "Usage: $(basename "$0") [options] ACTION [ARGS]" >&2
   echo
   echo "GLOBAL OPTIONS"
   echo
+  echo "  -v, --version      Display the version"
   echo "  -a, --api TOKEN    Netbox API Token (default: \$NETBOX_API_TOKEN)"
   echo "  -u, --url URL      Netbox URL (default: \$NETBOX_URL)"
   echo "  -g, --graphql      Use GraphQL API instead of REST API (list actions only)"
@@ -1587,6 +1590,10 @@ main() {
     case "$1" in
       help|h|-h|--help)
         usage
+        exit 0
+        ;;
+      -v|--version)
+        echo "${VERSION}"
         exit 0
         ;;
       -a|--api-token)
