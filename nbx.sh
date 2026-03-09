@@ -20,6 +20,8 @@ OUTPUT="${OUTPUT:-pretty}"
 PEDANTIC="${PENDANTIC:-}"
 SORT_BY="${SORT_BY:-name}"
 WITH_ID_COL="${WITH_ID_COL:-}"
+FZF_MODE="${FZF_MODE:-}"
+FZF_PREVIEW_MODE="${FZF_PREVIEW_MODE:-}"
 
 JSON_COLUMNS=()
 COLUMN_NAMES=()
@@ -95,6 +97,7 @@ usage() {
   echo "  -o, --output TYPE  Output format: pretty (default), json, field"
   echo "  -F, --field FIELD  Field to output when using 'field' output format"
   echo "  -j, --json         Output format: json"
+  echo "      --fzf          Select a result interactively with fzf"
   echo "  -N, --no-header    Do not print header"
   echo "  -c, --no-color     Disable color output"
   echo "  --compact          Truncate long fields"
@@ -233,6 +236,369 @@ echo_debug_no_trunc() {
 echo_dryrun() {
   echo -e "\e[1m\e[35mDRY\e[0m " >&2
   echo "$*" >&2
+}
+
+nbx_preview_supports_color() {
+  if [[ -n "${NBX_FORCE_COLOR:-}" ]]
+  then
+    return 0
+  fi
+
+  if [[ -n "${NO_COLOR:-}" ]]
+  then
+    return 1
+  fi
+
+  [[ -t 1 ]]
+}
+
+nbx_preview_colorize() {
+  local code="$1"
+  local text="$2"
+
+  if ! nbx_preview_supports_color
+  then
+    printf '%s' "${text}"
+    return 0
+  fi
+
+  printf '\033[%sm%s\033[0m' "${code}" "${text}"
+}
+
+nbx_preview_value_color() {
+  local key="$1"
+
+  case "${key}" in
+    Type|Status)
+      printf '%s' '33'
+      ;;
+    ID|Asset\ tag|Serial|Primary\ IPv4)
+      printf '%s' '35'
+      ;;
+    URL)
+      printf '%s' '34'
+      ;;
+    *)
+      printf '%s' '32'
+      ;;
+  esac
+}
+
+nbx_preview_can_use_kitty() {
+  if [[ -z "${KITTY_WINDOW_ID:-}" ]]
+  then
+    return 1
+  fi
+
+  if ! command -v kitten >/dev/null 2>&1
+  then
+    return 1
+  fi
+
+  if [[ -n "${NBX_FORCE_KITTY:-}" ]]
+  then
+    return 0
+  fi
+
+  [[ -t 1 ]]
+}
+
+nbx_preview_resolve_media_url() {
+  local media_url="$1"
+
+  if [[ -z "${media_url}" ]]
+  then
+    return 0
+  fi
+
+  if [[ "${media_url}" =~ ^https?:// ]]
+  then
+    printf '%s\n' "${media_url}"
+    return 0
+  fi
+
+  if [[ "${media_url}" == /* ]]
+  then
+    printf '%s%s\n' "${NETBOX_URL%/}" "${media_url}"
+    return 0
+  fi
+
+  printf '%s/%s\n' "${NETBOX_URL%/}" "${media_url#./}"
+}
+
+nbx_preview_fetch_json_url() {
+  local url="$1"
+
+  curl -fsSL \
+    -H "Authorization: Token ${NETBOX_API_TOKEN}" \
+    -H "Accept: application/json; indent=2" \
+    "${url}"
+}
+
+nbx_preview_extract_front_image_url() {
+  local json_input="$1"
+
+  jq -r '
+    [
+      .front_image.url?,
+      .front_image?,
+      .front_image_url?,
+      .device_type.front_image.url?,
+      .device_type.front_image?,
+      .device_type.front_image_url?,
+      .image_front.url?,
+      .image_front?,
+      .device_type.image_front.url?,
+      .device_type.image_front?
+    ]
+    | map(select(type == "string" and length > 0 and . != "null"))
+    | first // ""
+  ' <<< "${json_input}"
+}
+
+nbx_preview_fetch_device_type_json() {
+  local object_json="$1"
+  local device_type_url=""
+  local device_type_id=""
+
+  device_type_url="$(jq -r '.device_type.url? // ""' <<< "${object_json}")" || return 1
+  device_type_id="$(jq -r '(.device_type.id? // "") | tostring' <<< "${object_json}")" || return 1
+
+  if [[ -n "${device_type_url}" && "${device_type_url}" != "null" ]]
+  then
+    nbx_preview_fetch_json_url "$(nbx_preview_resolve_media_url "${device_type_url}")"
+    return $?
+  fi
+
+  if [[ -n "${device_type_id}" && "${device_type_id}" != "null" ]]
+  then
+    nbx_preview_fetch_json_url "${NETBOX_URL%/}/api/dcim/device-types/${device_type_id}/"
+    return $?
+  fi
+
+  return 1
+}
+
+nbx_preview_render_device_image() {
+  local object_json="$1"
+  local image_tool
+  local image_url=""
+  local resolved_image_url
+  local device_type_json=""
+  local tmp_dir
+  local source_image
+  local preview_image
+
+  if ! nbx_preview_can_use_kitty
+  then
+    return 1
+  fi
+
+  if ! command -v curl >/dev/null 2>&1
+  then
+    return 1
+  fi
+
+  image_url="$(nbx_preview_extract_front_image_url "${object_json}")" || return 1
+
+  if [[ -z "${image_url}" ]]
+  then
+    device_type_json="$(nbx_preview_fetch_device_type_json "${object_json}")" || return 1
+    image_url="$(nbx_preview_extract_front_image_url "${device_type_json}")" || return 1
+  fi
+
+  if [[ -z "${image_url}" ]]
+  then
+    return 1
+  fi
+
+  resolved_image_url="$(nbx_preview_resolve_media_url "${image_url}")"
+  tmp_dir="$(mktemp -d nbx-preview.XXXXXX)" || return 1
+  source_image="${tmp_dir}/source-image"
+  preview_image="${tmp_dir}/preview-image.png"
+
+  curl -fsSL \
+    -H "Authorization: Token ${NETBOX_API_TOKEN}" \
+    "${resolved_image_url}" \
+    -o "${source_image}" || {
+    rm -rf "${tmp_dir}"
+    return 1
+  }
+
+  if command -v magick >/dev/null 2>&1
+  then
+    image_tool="magick"
+  elif command -v convert >/dev/null 2>&1
+  then
+    image_tool="convert"
+  else
+    rm -rf "${tmp_dir}"
+    return 1
+  fi
+
+  "${image_tool}" "${source_image}" -resize x200 "${preview_image}" >/dev/null 2>&1 || {
+    rm -rf "${tmp_dir}"
+    return 1
+  }
+
+  kitten icat --clear >/dev/null 2>&1 || true
+  kitten icat \
+    --stdin=no \
+    --transfer-mode=stream \
+    --align=left \
+    --no-trailing-newline \
+    "${preview_image}" || {
+    rm -rf "${tmp_dir}"
+    return 1
+  }
+  printf '\n'
+  rm -rf "${tmp_dir}"
+}
+
+nbx_preview_print_fields() {
+  local object_json="$1"
+  local object_type="$2"
+  local summary_lines
+  local key
+  local value
+  local width=14
+
+  case "${object_type}" in
+    d|dev|device|devices)
+      summary_lines="$(jq -r '
+        [
+          ["Type", .display // .name // ""],
+          ["ID", ((.id // "") | tostring)],
+          ["Name", (.name // "")],
+          ["Manufacturer", (.device_type.manufacturer.name // "")],
+          ["Device type", (.device_type.model // "")],
+          ["Role", (.role.name // "")],
+          ["Rack", (.rack.name // "")],
+          ["Primary IPv4", (.primary_ip4.address // "")],
+          ["Serial", (.serial // "")],
+          ["Asset tag", (.asset_tag // "")],
+          ["Status", (.status.label // .status.value // "")],
+          ["URL", (.url // "")]
+        ]
+        | .[]
+        | @tsv
+      ' <<< "${object_json}")" || return 1
+      ;;
+    rack|racks)
+      summary_lines="$(jq -r '
+        [
+          ["Type", .display // .name // ""],
+          ["ID", ((.id // "") | tostring)],
+          ["Name", (.name // "")],
+          ["Site", (.site.name // "")],
+          ["Location", (.location.name // "")],
+          ["Role", (.role.name // "")],
+          ["Serial", (.serial // "")],
+          ["Status", (.status.label // .status.value // "")],
+          ["URL", (.url // "")]
+        ]
+        | .[]
+        | @tsv
+      ' <<< "${object_json}")" || return 1
+      ;;
+    *)
+      yq -P --colors <<< "${object_json}"
+      return $?
+      ;;
+  esac
+
+  while IFS=$'\t' read -r key value
+  do
+    if [[ -z "${value}" ]]
+    then
+      value="$(nbx_preview_colorize '90;9' 'N/A')"
+    else
+      value="$(nbx_preview_colorize "$(nbx_preview_value_color "${key}")" "${value}")"
+    fi
+
+    printf '%s  %s\n' \
+      "$(nbx_preview_colorize '1;36' "$(printf '%-*s' "${width}" "${key}")")" \
+      "${value}"
+  done <<< "${summary_lines}"
+}
+
+nbx_fzf_preview() {
+  local object_type="$1"
+  local json_file="$2"
+  local index="$3"
+  local object_json
+
+  if [[ ! "${index}" =~ ^[0-9]+$ ]]
+  then
+    return 0
+  fi
+
+  object_json="$(jq -cer --arg idx "${index}" '.[$idx | tonumber]' "${json_file}")" || return 1
+  nbx_preview_print_fields "${object_json}" "${object_type}" || return 1
+
+  case "${object_type}" in
+    d|dev|device|devices)
+      printf '\n'
+      nbx_preview_render_device_image "${object_json}" || true
+      ;;
+  esac
+}
+
+nbx_fzf_select() {
+  local object_type="$1"
+  local json_data="$2"
+  local tmp_json
+  local selected
+  local selected_index
+  local preview_command
+  local preview_script
+  local preview_object_type
+  local preview_json
+  local preview_url
+  local preview_token
+
+  if ! command -v fzf >/dev/null 2>&1
+  then
+    echo_error "fzf is required for --fzf mode"
+    return 1
+  fi
+
+  tmp_json="$(mktemp nbx-fzf.XXXXXX.json)" || return 1
+  printf '%s\n' "${json_data}" > "${tmp_json}"
+
+  printf -v preview_script '%q' "${BASH_SOURCE[0]}"
+  printf -v preview_object_type '%q' "${object_type}"
+  printf -v preview_json '%q' "${tmp_json}"
+  printf -v preview_url '%q' "${NETBOX_URL}"
+  printf -v preview_token '%q' "${NETBOX_API_TOKEN}"
+  preview_command="NBX_FORCE_COLOR=1 NBX_FORCE_KITTY=1 NETBOX_URL=${preview_url} NETBOX_API_TOKEN=${preview_token} ${preview_script} --fzf-preview ${preview_object_type} ${preview_json} {1}"
+
+  selected="$(
+    jq -er '
+      to_entries[]
+      | [
+          .key,
+          (.value.name // .value.display // .value.address // .value.label // (.value.id | tostring) // "N/A")
+        ]
+      | @tsv
+    ' "${tmp_json}" | \
+      fzf \
+        --ansi \
+        --header="Select ${object_type}" \
+        --delimiter=$'\t' \
+        --with-nth=2.. \
+        --preview "${preview_command}"
+  )" || {
+    rm -f "${tmp_json}"
+    return 1
+  }
+
+  selected_index="${selected%%$'\t'*}"
+  jq -cer --arg idx "${selected_index}" '.[$idx | tonumber]' "${tmp_json}" || {
+    rm -f "${tmp_json}"
+    return 1
+  }
+  rm -f "${tmp_json}"
 }
 
 echo_confirm() {
@@ -1637,6 +2003,14 @@ main() {
         OUTPUT=json
         shift
         ;;
+      --fzf)
+        FZF_MODE=1
+        shift
+        ;;
+      --fzf-preview)
+        FZF_PREVIEW_MODE=1
+        shift
+        ;;
       -F|--field)
         FIELD="$2"
         OUTPUT=field
@@ -1758,6 +2132,12 @@ main() {
   fi
 
   shift
+
+  if [[ -n "${FZF_PREVIEW_MODE}" ]]
+  then
+    nbx_fzf_preview "${ACTION}" "$@"
+    return $?
+  fi
 
   if [[ -z "$CUSTOM_COLUMNS" ]]
   then
@@ -2866,6 +3246,40 @@ main() {
   if ! JSON_DATA="$("${command[@]}" "$@")"
   then
     return 1
+  fi
+
+  if [[ -n "${FZF_MODE}" ]]
+  then
+    if ! jq -e 'type == "array"' >/dev/null 2>&1 <<< "${JSON_DATA}"
+    then
+      echo_error "--fzf requires a list action that returns a JSON array"
+      return 1
+    fi
+
+    JSON_DATA="$(nbx_fzf_select "${ACTION}" "${JSON_DATA}")" || return 1
+
+    case "$OUTPUT" in
+      json)
+        jq -er '.' <<< "${JSON_DATA}"
+        ;;
+      field)
+        jq -er --arg f "$FIELD" '.[$f]' <<< "${JSON_DATA}"
+        ;;
+      pretty)
+        if [[ ! -t 1 ]]
+        then
+          [[ -z "$KEEP_HEADER" ]] && NO_HEADER=1
+          NO_COLOR=1
+        fi
+
+        pretty_output <<< "$(jq -c '[.]' <<< "${JSON_DATA}")"
+        ;;
+      *)
+        echo_error "Unknown output value: ${OUTPUT}"
+        return 1
+        ;;
+    esac
+    return 0
   fi
 
   case "$OUTPUT" in
