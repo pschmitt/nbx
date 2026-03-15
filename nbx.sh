@@ -51,6 +51,7 @@ declare -A NETBOX_API_ENDPOINTS=(
   [ip-addresses]="ipam/ip-addresses/"
   [locations]="dcim/locations/"
   [manufacturers]="dcim/manufacturers/"
+  [modules]="dcim/modules/"
   [platforms]="dcim/platforms/"
   [power-outlets]="dcim/power-outlets/"
   [power-ports]="dcim/power-ports/"
@@ -135,6 +136,7 @@ usage() {
   echo "  ip-addresses          [FILTERS]   List IP addresses"
   echo "  locations             [FILTERS]   List locations"
   echo "  manufacturers         [FILTERS]   List manufacturers"
+  echo "  modules               [FILTERS]   List modules"
   echo "  platforms             [FILTERS]   List platforms"
   echo "  power-outlets         [FILTERS]   List power outlets"
   echo "  power-ports           [FILTERS]   List power ports"
@@ -494,6 +496,25 @@ nbx_preview_print_fields() {
           ["Location", (.location.name // "")],
           ["Role", (.role.name // "")],
           ["Serial", (.serial // "")],
+          ["Status", (.status.label // .status.value // "")],
+          ["URL", (.url // "")]
+        ]
+        | .[]
+        | @tsv
+      ' <<< "${object_json}")" || return 1
+      ;;
+    mod|mods|module|modules)
+      summary_lines="$(jq -r '
+        [
+          ["Type", .display // .name // ""],
+          ["ID", ((.id // "") | tostring)],
+          ["Name", (.name // "")],
+          ["Manufacturer", (.module_type.manufacturer.name // "")],
+          ["Model", (.module_type.model // "")],
+          ["Device", (.device.name // "")],
+          ["Module bay", (.module_bay.name // "")],
+          ["Serial", (.serial // "")],
+          ["Asset tag", (.asset_tag // "")],
           ["Status", (.status.label // .status.value // "")],
           ["URL", (.url // "")]
         ]
@@ -2718,6 +2739,34 @@ main() {
         )
       else
         command=(netbox_list_manufacturers)
+      fi
+      ;;
+    mod|mods|module|modules)
+      if [[ -z "$CUSTOM_COLUMNS" ]]
+      then
+        JSON_COLUMNS+=(
+          module_type.manufacturer.name
+          module_type.model
+          device.name
+          module_bay.name
+        )
+        COLUMN_NAMES+=(
+          Manufacturer
+          Model
+          Device
+          "Module Bay"
+        )
+      fi
+
+      if [[ -n "$GRAPHQL" ]]
+      then
+        command=(
+          netbox_graphql_objects module
+          "${JSON_COLUMNS[@]}"
+          "${JSON_COLUMNS_AFTER[@]}"
+        )
+      else
+        command=(netbox_list_modules)
       fi
       ;;
     plat*)

@@ -95,6 +95,7 @@ nbx [options] ACTION [ARGS]
 | `ip-addresses [FILTERS]`     | List IP addresses     |
 | `locations [FILTERS]`        | List locations        |
 | `manufacturers [FILTERS]`    | List manufacturers    |
+| `modules [FILTERS]`          | List modules          |
 | `platforms [FILTERS]`        | List platforms        |
 | `prefixes [FILTERS]`         | List prefixes         |
 | `providers [FILTERS]`        | List providers        |
