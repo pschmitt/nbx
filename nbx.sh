@@ -22,6 +22,7 @@ SORT_BY="${SORT_BY:-name}"
 WITH_ID_COL="${WITH_ID_COL:-}"
 FZF_MODE="${FZF_MODE:-}"
 FZF_PREVIEW_MODE="${FZF_PREVIEW_MODE:-}"
+DEVICE_IMAGE_URL_MODE="${DEVICE_IMAGE_URL_MODE:-}"
 
 JSON_COLUMNS=()
 COLUMN_NAMES=()
@@ -455,6 +456,37 @@ nbx_preview_render_device_image() {
   }
   printf '\n'
   rm -rf "${tmp_dir}"
+}
+
+nbx_print_device_image_url() {
+  local object_json="${1:-}"
+  local image_url=""
+  local device_type_json=""
+
+  if [[ -z "${object_json}" ]] && ! [[ -t 0 ]]
+  then
+    object_json="$(cat)"
+  fi
+
+  if [[ -z "${object_json}" ]]
+  then
+    return 1
+  fi
+
+  image_url="$(nbx_preview_extract_front_image_url "${object_json}")" || return 1
+
+  if [[ -z "${image_url}" ]]
+  then
+    device_type_json="$(nbx_preview_fetch_device_type_json "${object_json}")" || return 1
+    image_url="$(nbx_preview_extract_front_image_url "${device_type_json}")" || return 1
+  fi
+
+  if [[ -z "${image_url}" ]]
+  then
+    return 1
+  fi
+
+  nbx_preview_resolve_media_url "${image_url}"
 }
 
 nbx_preview_print_fields() {
@@ -2032,6 +2064,10 @@ main() {
         FZF_PREVIEW_MODE=1
         shift
         ;;
+      --device-image-url)
+        DEVICE_IMAGE_URL_MODE=1
+        shift
+        ;;
       -F|--field)
         FIELD="$2"
         OUTPUT=field
@@ -2143,6 +2179,12 @@ main() {
   done
 
   set -- "${args[@]}"
+
+  if [[ -n "${DEVICE_IMAGE_URL_MODE}" ]]
+  then
+    nbx_print_device_image_url "${1:-}"
+    return $?
+  fi
 
   ACTION="$1"
   if [[ -z "$ACTION" ]]
